@@ -29,6 +29,7 @@ import FloatingToolbar from '../toolbar/FloatingToolbar';
 import MediaUploadModal from '../modals/MediaUploadModal';
 import CloudinaryConfigModal from '../modals/CloudinaryConfigModal';
 import JsonViewerModal from '../modals/JsonViewerModal';
+import ClearCanvasModal from '../modals/ClearCanvasModal';
 
 
 export default function InfiniteCanvas() {
@@ -46,11 +47,29 @@ export default function InfiniteCanvas() {
   const [penColor, setPenColor] = useState<string>('#2563eb');
   const [penWidth, setPenWidth] = useState<number>(4);
   const [showGrid, setShowGrid] = useState(true);
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+
+  // Load theme from localStorage
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('ai-canvas-theme');
+    if (savedTheme === 'light' || savedTheme === 'dark') {
+      setTheme(savedTheme);
+    }
+  }, []);
+
+  const handleToggleTheme = () => {
+    setTheme((prev) => {
+      const next = prev === 'dark' ? 'light' : 'dark';
+      localStorage.setItem('ai-canvas-theme', next);
+      return next;
+    });
+  };
 
   // Modals state
   const [uploadModalType, setUploadModalType] = useState<'image' | 'video' | 'audio' | null>(null);
   const [isCloudinaryModalOpen, setIsCloudinaryModalOpen] = useState(false);
   const [isJsonModalOpen, setIsJsonModalOpen] = useState(false);
+  const [isClearModalOpen, setIsClearModalOpen] = useState(false);
   const [cloudinaryConfig, setCloudinaryConfig] = useState<CloudinaryConfig>(getStoredCloudinaryConfig());
 
   // Toast feedback
@@ -372,22 +391,18 @@ export default function InfiniteCanvas() {
 
   return (
     <CanvasFrame
+      theme={theme}
+      onToggleTheme={handleToggleTheme}
       isCloudinaryConfigured={Boolean(cloudinaryConfig.uploadPreset)}
       onOpenCloudinaryModal={() => setIsCloudinaryModalOpen(true)}
       onOpenJsonModal={() => setIsJsonModalOpen(true)}
       onResetZoom={handleResetZoom}
-      onToggleGrid={() => setShowGrid((prev) => !prev)}
-      onClearCanvas={() => {
-        if (window.confirm('Clear all items and drawings from the canvas?')) {
-          setItems([]);
-          setStrokes([]);
-          showToast('Canvas cleared');
-        }
-      }}
+      onClearCanvas={() => setIsClearModalOpen(true)}
       overlays={
         <>
           {/* Floating Toolbar at Center Bottom (resting seamlessly inside the frame shelf) */}
           <FloatingToolbar
+            theme={theme}
             activeTool={activeTool}
             setActiveTool={setActiveTool}
             penColor={penColor}
@@ -444,9 +459,27 @@ export default function InfiniteCanvas() {
             }}
           />
 
+          {/* Clear Canvas Confirmation Modal with SlideToConfirm */}
+          <ClearCanvasModal
+            isOpen={isClearModalOpen}
+            onClose={() => setIsClearModalOpen(false)}
+            theme={theme}
+            onConfirmClear={() => {
+              setItems([]);
+              setStrokes([]);
+              showToast('Canvas cleared');
+            }}
+          />
+
           {/* Toast Notification */}
           {toastMessage && (
-            <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-2xl bg-[#231b1b] border border-[#524141] text-white text-xs font-medium shadow-2xl backdrop-blur-md animate-in fade-in slide-in-from-top-2 duration-150">
+            <div
+              className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-2xl border text-xs font-medium shadow-2xl backdrop-blur-md animate-in fade-in slide-in-from-top-2 duration-150 ${
+                theme === 'light'
+                  ? 'bg-[#ffffff] border-[#d8cfcf] text-[#2d2424] shadow-black/10'
+                  : 'bg-[#231b1b] border-[#524141] text-white shadow-black/80'
+              }`}
+            >
               {toastMessage}
             </div>
           )}
@@ -458,7 +491,9 @@ export default function InfiniteCanvas() {
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        className={`relative w-full h-full overflow-hidden select-none bg-[#221b1b] ${
+        className={`relative w-full h-full overflow-hidden select-none transition-colors duration-200 ${
+          theme === 'light' ? 'bg-[#f7f4f4]' : 'bg-[#221b1b]'
+        } ${
           activeTool === 'pen'
             ? 'cursor-crosshair'
             : isPanning.current
@@ -469,7 +504,9 @@ export default function InfiniteCanvas() {
         {/* Infinite Canvas Dots Grid */}
         {showGrid && (
           <div
-            className="absolute inset-0 pointer-events-none canvas-grid-dots"
+            className={`absolute inset-0 pointer-events-none ${
+              theme === 'light' ? 'canvas-grid-dots-light' : 'canvas-grid-dots'
+            }`}
             style={{
               backgroundPosition: `${pan.x}px ${pan.y}px`,
               backgroundSize: `${30 * zoom}px ${30 * zoom}px`,
@@ -493,6 +530,7 @@ export default function InfiniteCanvas() {
               item,
               zoom,
               isSelected,
+              theme,
               onSelect: handleSelectItem,
               onUpdate: handleUpdateItem,
               onRemove: handleRemoveItem,

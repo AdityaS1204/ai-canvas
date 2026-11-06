@@ -17,31 +17,46 @@ html, body {
   background: #403131;
   color: #ffffff;
   user-select: none;
-  overflow: hidden;
+  overflow: hidden !important;
   margin: 0;
   padding: 0;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
   touch-action: none;
   -webkit-text-size-adjust: 100%;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
-/* Custom scrollbars inside text and cards */
-::-webkit-scrollbar {
+/* Suppress root and main window scrollbars */
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+main::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* Custom scrollbars inside text cards and modals only */
+div::-webkit-scrollbar,
+textarea::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
-::-webkit-scrollbar-track {
+div::-webkit-scrollbar-track,
+textarea::-webkit-scrollbar-track {
   background: transparent;
 }
 
-::-webkit-scrollbar-thumb {
+div::-webkit-scrollbar-thumb,
+textarea::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.2);
   border-radius: 9999px;
 }
 
-::-webkit-scrollbar-thumb:hover {
+div::-webkit-scrollbar-thumb:hover,
+textarea::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.4);
 }
 
@@ -49,4 +64,9 @@ html, body {
 .canvas-grid-dots {
   background-size: 28px 28px;
   background-image: radial-gradient(circle, rgba(255, 255, 255, 0.15) 1.2px, transparent 1.2px);
+}
+
+.canvas-grid-dots-light {
+  background-size: 28px 28px;
+  background-image: radial-gradient(circle, rgba(0, 0, 0, 0.14) 1.2px, transparent 1.2px);
 }
