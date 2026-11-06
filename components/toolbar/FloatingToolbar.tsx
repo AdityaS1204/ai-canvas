@@ -63,10 +63,10 @@ export default function FloatingToolbar({
   const [showPenOptions, setShowPenOptions] = useState(false);
 
   return (
-    <div className="fixed bottom-6 md:bottom-8 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 select-none pointer-events-auto">
+    <div className="fixed bottom-2.5 md:bottom-3 left-1/2 -translate-x-1/2 z-40 flex flex-col items-center gap-2 select-none pointer-events-auto">
       {/* Pen Options Popup (only blue, white, black) */}
       {showPenOptions && activeTool === 'pen' && (
-        <div className="flex items-center gap-3 px-3 py-2 rounded-2xl bg-black/95 backdrop-blur-xl border border-white/20 shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-150">
+        <div className="flex items-center gap-3 px-3 py-2 rounded-2xl bg-[#241c1c]/95 backdrop-blur-xl border border-[#524141] shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-150">
           <div className="flex items-center gap-1.5">
             {PEN_COLORS.map((c) => (
               <button
@@ -102,7 +102,7 @@ export default function FloatingToolbar({
       )}
 
       {/* Main Floating Toolbar */}
-      <div className="flex items-center gap-1 p-1.5 rounded-2xl bg-black/90 backdrop-blur-xl border border-white/15 shadow-2xl shadow-black/90">
+      <div className="flex items-center gap-1 p-1.5 rounded-2xl bg-[#241c1c]/95 backdrop-blur-xl border border-[#524141] shadow-2xl shadow-black/90">
         {/* Selection / Move tool */}
         <button
           type="button"
