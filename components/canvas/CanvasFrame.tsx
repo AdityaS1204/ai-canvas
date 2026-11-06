@@ -15,6 +15,7 @@ import {
 
 interface CanvasFrameProps {
   theme?: 'dark' | 'light';
+  toolbarDims?: { width: number; height: number };
   onToggleTheme?: () => void;
   isCloudinaryConfigured: boolean;
   onOpenCloudinaryModal: () => void;
@@ -33,6 +34,7 @@ const SMOOTH_TRANSITION = {
 
 export default function CanvasFrame({
   theme = 'dark',
+  toolbarDims,
   onToggleTheme,
   isCloudinaryConfigured,
   onOpenCloudinaryModal,
@@ -87,9 +89,16 @@ export default function CanvasFrame({
   const R = 20; // Right border thickness
   const B = 20; // Bottom border thickness
 
-  // Bottom center shelf tightly sized to snugly fit the toolbar inside with even ~6-8px gap
-  const shelfW = Math.min(Math.max(W - 32, 380), 438);
-  const shelfHeight = 36; // Snug top clearance matching the bottom and side margins
+  // Bottom center shelf tightly aligned to the toolbar's exact width and height
+  const toolbarW = toolbarDims?.width || 554;
+  const toolbarH = toolbarDims?.height || 48;
+
+  const sideMargin = 8;
+  const topMargin = 8;
+  const bottomMargin = 6; // matches bottom-1.5 (6px)
+
+  const shelfW = Math.min(toolbarW + sideMargin * 2, W - 32);
+  const shelfHeight = Math.max(toolbarH + topMargin + bottomMargin - B, 36);
   const shelfX1 = (W - shelfW) / 2;
   const shelfX2 = shelfX1 + shelfW;
   const shelfY = H - B - shelfHeight;

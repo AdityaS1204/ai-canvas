@@ -51,6 +51,7 @@ export default function InfiniteCanvas() {
   const currentStrokeRef = useRef<DrawingStroke | null>(null);
   const isDrawing = useRef(false);
   const isErasing = useRef(false);
+  const [toolbarDims, setToolbarDims] = useState<{ width: number; height: number }>({ width: 554, height: 48 });
   const [showGrid, setShowGrid] = useState(true);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
@@ -546,6 +547,8 @@ export default function InfiniteCanvas() {
         setActiveTool('pen');
       } else if (e.key === 'e' || e.key === 'E') {
         setActiveTool('eraser');
+      } else if (e.key === 's' || e.key === 'S') {
+        setActiveTool('shape');
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
         // Undo last drawn stroke
         e.preventDefault();
@@ -576,6 +579,7 @@ export default function InfiniteCanvas() {
   return (
     <CanvasFrame
       theme={theme}
+      toolbarDims={toolbarDims}
       onToggleTheme={handleToggleTheme}
       isCloudinaryConfigured={Boolean(cloudinaryConfig.uploadPreset)}
       onOpenCloudinaryModal={() => setIsCloudinaryModalOpen(true)}
@@ -602,6 +606,7 @@ export default function InfiniteCanvas() {
             onOpenJsonModal={() => setIsJsonModalOpen(true)}
             onOpenCloudinaryModal={() => setIsCloudinaryModalOpen(true)}
             onClearCanvas={() => setItems([])}
+            onDimensionsChange={setToolbarDims}
           />
 
           {/* Media Upload Modal */}

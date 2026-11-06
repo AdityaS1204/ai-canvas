@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { ActiveTool } from '@/types/canvas';
 import {
   Pen,
@@ -33,6 +33,7 @@ interface FloatingToolbarProps {
   onOpenJsonModal: () => void;
   onOpenCloudinaryModal: () => void;
   onClearCanvas: () => void;
+  onDimensionsChange?: (dims: { width: number; height: number }) => void;
 }
 
 // Strictly restricted to Blue, White, and Black palette
@@ -86,6 +87,26 @@ function ToolbarTooltip({
   );
 }
 
+// Clean Shapes icon matching standard design tool iconography
+function ShapeIcon({ size = 17, className = '' }: { size?: number; className?: string }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <rect x="3" y="3" width="11" height="11" rx="2.5" />
+      <circle cx="15.5" cy="15.5" r="5.5" />
+    </svg>
+  );
+}
+
 export default function FloatingToolbar({
   theme = 'dark',
   activeTool,
@@ -102,9 +123,41 @@ export default function FloatingToolbar({
   onOpenUploadModal,
   onOpenJsonModal,
   onOpenCloudinaryModal,
+  onDimensionsChange,
 }: FloatingToolbarProps) {
   const [showPenOptions, setShowPenOptions] = useState(false);
+  const toolbarContainerRef = useRef<HTMLDivElement>(null);
   const isLight = theme === 'light';
+
+  // Report measured toolbar dimensions to align the SVG notch shelf pixel-perfectly
+  useEffect(() => {
+    const el = toolbarContainerRef.current;
+    if (!el || !onDimensionsChange) return;
+
+    const reportSize = () => {
+      const rect = el.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        onDimensionsChange({
+          width: Math.round(rect.width),
+          height: Math.round(rect.height),
+        });
+      }
+    };
+
+    reportSize();
+
+    const resizeObserver = new ResizeObserver(() => {
+      reportSize();
+    });
+    resizeObserver.observe(el);
+
+    window.addEventListener('resize', reportSize);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', reportSize);
+    };
+  }, [onDimensionsChange]);
 
   const inactiveBtnClass = isLight
     ? 'text-[#5a4848] hover:text-[#18181b] hover:bg-black/5'
@@ -163,9 +216,10 @@ export default function FloatingToolbar({
         </div>
       )}
 
-      {/* Main Floating Toolbar - perfectly fitted inside frame notch */}
+      {/* Main Floating Toolbar - perfectly centered on screen */}
       <div
-        className={`flex items-center gap-0.5 p-1 rounded-md border shadow-xl transition-colors duration-200 ${
+        ref={toolbarContainerRef}
+        className={`flex items-center gap-1 p-1.5 rounded-md border shadow-xl transition-colors duration-200 ${
           isLight
             ? 'bg-[#ffffff] border-[#d8cfcf] shadow-black/10'
             : 'bg-[#231b1b] border-[#524141] shadow-black/80'
@@ -180,13 +234,13 @@ export default function FloatingToolbar({
               setActiveTool('select');
               setShowPenOptions(false);
             }}
-            className={`flex items-center justify-center w-8 h-8 rounded-md transition-all cursor-pointer ${
+            className={`flex items-center justify-center w-9 h-9 rounded-md transition-all cursor-pointer ${
               activeTool === 'select'
                 ? 'bg-blue-600 text-white shadow-md'
                 : inactiveBtnClass
             }`}
           >
-            <Pointer size={16} />
+            <Pointer size={17} />
           </button>
         </ToolbarTooltip>
 
@@ -204,16 +258,16 @@ export default function FloatingToolbar({
               setActiveTool('pen');
               setShowPenOptions(!showPenOptions || activeTool !== 'pen');
             }}
-            className={`relative flex items-center justify-center w-8 h-8 rounded-md transition-all cursor-pointer ${
+            className={`relative flex items-center justify-center w-9 h-9 rounded-md transition-all cursor-pointer ${
               activeTool === 'pen'
                 ? 'bg-blue-600 text-white shadow-md'
                 : inactiveBtnClass
             }`}
           >
-            <Pen size={16} />
+            <Pen size={17} />
             <span
               style={{ backgroundColor: penColor }}
-              className="absolute bottom-0.5 right-0.5 w-1.5 h-1.5 rounded-full border border-black"
+              className="absolute bottom-1 right-1 w-2 h-2 rounded-full border border-black"
             />
           </button>
         </ToolbarTooltip>
@@ -227,13 +281,32 @@ export default function FloatingToolbar({
               setActiveTool('eraser');
               setShowPenOptions(false);
             }}
-            className={`flex items-center justify-center w-8 h-8 rounded-md transition-all cursor-pointer ${
+            className={`flex items-center justify-center w-9 h-9 rounded-md transition-all cursor-pointer ${
               activeTool === 'eraser'
                 ? 'bg-blue-600 text-white shadow-md'
                 : inactiveBtnClass
             }`}
           >
-            <Eraser size={16} />
+            <Eraser size={17} />
+          </button>
+        </ToolbarTooltip>
+
+        {/* Shapes tool */}
+        <ToolbarTooltip label="Shapes" shortcut="S" isLight={isLight}>
+          <button
+            type="button"
+            aria-label="Shapes tool"
+            onClick={() => {
+              setActiveTool('shape');
+              setShowPenOptions(false);
+            }}
+            className={`flex items-center justify-center w-9 h-9 rounded-md transition-all cursor-pointer ${
+              activeTool === 'shape'
+                ? 'bg-blue-600 text-white shadow-md'
+                : inactiveBtnClass
+            }`}
+          >
+            <ShapeIcon size={17} />
           </button>
         </ToolbarTooltip>
 
@@ -246,9 +319,9 @@ export default function FloatingToolbar({
               setShowPenOptions(false);
               onAddTextBox();
             }}
-            className={`flex items-center justify-center w-8 h-8 rounded-md transition-all cursor-pointer ${inactiveBtnClass}`}
+            className={`flex items-center justify-center w-9 h-9 rounded-md transition-all cursor-pointer ${inactiveBtnClass}`}
           >
-            <FileText size={16} />
+            <FileText size={17} />
           </button>
         </ToolbarTooltip>
 
@@ -261,9 +334,9 @@ export default function FloatingToolbar({
               setShowPenOptions(false);
               onOpenUploadModal('image');
             }}
-            className={`flex items-center justify-center w-8 h-8 rounded-md transition-all cursor-pointer ${inactiveBtnClass}`}
+            className={`flex items-center justify-center w-9 h-9 rounded-md transition-all cursor-pointer ${inactiveBtnClass}`}
           >
-            <ImageIcon size={16} />
+            <ImageIcon size={17} />
           </button>
         </ToolbarTooltip>
 
@@ -276,9 +349,9 @@ export default function FloatingToolbar({
               setShowPenOptions(false);
               onOpenUploadModal('video');
             }}
-            className={`flex items-center justify-center w-8 h-8 rounded-md transition-all cursor-pointer ${inactiveBtnClass}`}
+            className={`flex items-center justify-center w-9 h-9 rounded-md transition-all cursor-pointer ${inactiveBtnClass}`}
           >
-            <FileVideo size={16} />
+            <FileVideo size={17} />
           </button>
         </ToolbarTooltip>
 
@@ -291,13 +364,13 @@ export default function FloatingToolbar({
               setShowPenOptions(false);
               onOpenUploadModal('audio');
             }}
-            className={`flex items-center justify-center w-8 h-8 rounded-md transition-all cursor-pointer ${inactiveBtnClass}`}
+            className={`flex items-center justify-center w-9 h-9 rounded-md transition-all cursor-pointer ${inactiveBtnClass}`}
           >
-            <MusicNote size={16} />
+            <MusicNote size={17} />
           </button>
         </ToolbarTooltip>
 
-        <div className={`h-4 w-[1px] mx-0.5 ${isLight ? 'bg-black/15' : 'bg-white/15'}`} />
+        <div className={`h-5 w-[1px] mx-1 ${isLight ? 'bg-black/15' : 'bg-white/15'}`} />
 
         {/* Cloudinary Storage Config */}
         <ToolbarTooltip label="Cloudinary" isLight={isLight}>
@@ -305,13 +378,13 @@ export default function FloatingToolbar({
             type="button"
             aria-label="Cloudinary Storage Settings"
             onClick={onOpenCloudinaryModal}
-            className={`flex items-center justify-center w-8 h-8 rounded-md transition-all cursor-pointer ${
+            className={`flex items-center justify-center w-9 h-9 rounded-md transition-all cursor-pointer ${
               isLight
                 ? 'text-blue-600 hover:text-blue-700 hover:bg-blue-50'
                 : 'text-blue-400 hover:text-white hover:bg-blue-600/20'
             }`}
           >
-            <CloudUpload size={16} />
+            <CloudUpload size={17} />
           </button>
         </ToolbarTooltip>
 
@@ -321,30 +394,30 @@ export default function FloatingToolbar({
             type="button"
             aria-label="View & Export Canvas JSON"
             onClick={onOpenJsonModal}
-            className={`flex items-center justify-center w-8 h-8 rounded-md transition-all cursor-pointer ${
+            className={`flex items-center justify-center w-9 h-9 rounded-md transition-all cursor-pointer ${
               isLight
                 ? 'text-[#5a4848] hover:text-[#18181b] hover:bg-black/5'
                 : 'text-white/70 hover:text-white hover:bg-white/10'
             }`}
           >
-            <Download size={16} />
+            <Download size={17} />
           </button>
         </ToolbarTooltip>
 
-        <div className={`h-4 w-[1px] mx-0.5 ${isLight ? 'bg-black/15' : 'bg-white/15'}`} />
+        <div className={`h-5 w-[1px] mx-1 ${isLight ? 'bg-black/15' : 'bg-white/15'}`} />
 
-        {/* Zoom Controls (Zoom Out & Zoom In have NO tooltip as requested) */}
+        {/* Zoom Controls */}
         <button
           type="button"
           aria-label="Zoom Out"
           onClick={onZoomOut}
-          className={`flex items-center justify-center w-7 h-7 rounded-md transition-all cursor-pointer ${
+          className={`flex items-center justify-center w-8 h-8 rounded-md transition-all cursor-pointer ${
             isLight
               ? 'text-[#5a4848] hover:text-[#18181b] hover:bg-black/5'
               : 'text-white/60 hover:text-white hover:bg-white/10'
           }`}
         >
-          <ZoomOut size={14} />
+          <ZoomOut size={15} />
         </button>
 
         <ToolbarTooltip label="Reset View (100%)" isLight={isLight}>
@@ -352,7 +425,7 @@ export default function FloatingToolbar({
             type="button"
             aria-label="Reset Zoom (100%)"
             onClick={onResetZoom}
-            className={`px-1.5 py-0.5 text-[10px] font-mono rounded-md transition-all cursor-pointer min-w-[34px] text-center ${
+            className={`px-2 py-1 text-[11px] font-mono rounded-md transition-all cursor-pointer min-w-[38px] text-center ${
               isLight
                 ? 'text-[#382d2d] hover:text-[#18181b] hover:bg-black/5'
                 : 'text-white/80 hover:text-white hover:bg-white/10'
@@ -366,13 +439,13 @@ export default function FloatingToolbar({
           type="button"
           aria-label="Zoom In"
           onClick={onZoomIn}
-          className={`flex items-center justify-center w-7 h-7 rounded-md transition-all cursor-pointer ${
+          className={`flex items-center justify-center w-8 h-8 rounded-md transition-all cursor-pointer ${
             isLight
               ? 'text-[#5a4848] hover:text-[#18181b] hover:bg-black/5'
               : 'text-white/60 hover:text-white hover:bg-white/10'
           }`}
         >
-          <ZoomIn size={14} />
+          <ZoomIn size={15} />
         </button>
       </div>
     </div>
