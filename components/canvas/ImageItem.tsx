@@ -6,6 +6,7 @@ import CanvasItemCard from './CanvasItemCard';
 
 interface ImageItemProps {
   theme?: 'dark' | 'light';
+  isPenActive?: boolean;
   item: CanvasItem;
   zoom: number;
   isSelected: boolean;
@@ -16,6 +17,7 @@ interface ImageItemProps {
 
 export default function ImageItem({
   theme = 'dark',
+  isPenActive = false,
   item,
   zoom,
   isSelected,
@@ -29,6 +31,7 @@ export default function ImageItem({
   return (
     <CanvasItemCard
       theme={theme}
+      isPenActive={isPenActive}
       item={item}
       zoom={zoom}
       isSelected={isSelected}

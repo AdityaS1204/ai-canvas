@@ -6,6 +6,7 @@ import CanvasItemCard from './CanvasItemCard';
 
 interface AudioItemProps {
   theme?: 'dark' | 'light';
+  isPenActive?: boolean;
   item: CanvasItem;
   zoom: number;
   isSelected: boolean;
@@ -16,6 +17,7 @@ interface AudioItemProps {
 
 export default function AudioItem({
   theme = 'dark',
+  isPenActive = false,
   item,
   zoom,
   isSelected,
@@ -69,6 +71,7 @@ export default function AudioItem({
   return (
     <CanvasItemCard
       theme={theme}
+      isPenActive={isPenActive}
       item={item}
       zoom={zoom}
       isSelected={isSelected}

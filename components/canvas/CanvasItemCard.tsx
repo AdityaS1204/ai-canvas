@@ -6,6 +6,7 @@ import { Close } from '@honeyicons/react';
 
 interface CanvasItemCardProps {
   theme?: 'dark' | 'light';
+  isPenActive?: boolean;
   item: CanvasItem;
   zoom: number;
   isSelected: boolean;
@@ -17,6 +18,7 @@ interface CanvasItemCardProps {
 
 export default function CanvasItemCard({
   theme = 'dark',
+  isPenActive = false,
   item,
   zoom,
   isSelected,
@@ -152,8 +154,10 @@ export default function CanvasItemCard({
         height: `${item.height}px`,
         zIndex: isSelected ? 999 : item.zIndex,
       }}
-      /* pointer-events-auto ensures full interaction even inside pointer-events-none parent layer */
-      className={`group absolute pointer-events-auto select-none rounded-2xl flex flex-col p-1.5 pt-1 transition-all duration-150 ${
+      /* pointer-events-auto ensures full interaction; disabled during pen drawing to allow uninterrupted sketching */
+      className={`group absolute ${
+        isPenActive ? 'pointer-events-none' : 'pointer-events-auto'
+      } select-none rounded-2xl flex flex-col p-1.5 pt-1 transition-all duration-150 ${
         isDragging
           ? isLight
             ? 'cursor-grabbing ring-2 ring-black/40 shadow-2xl shadow-black/15 opacity-95'

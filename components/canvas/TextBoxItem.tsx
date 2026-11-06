@@ -6,6 +6,7 @@ import CanvasItemCard from './CanvasItemCard';
 
 interface TextBoxItemProps {
   theme?: 'dark' | 'light';
+  isPenActive?: boolean;
   item: CanvasItem;
   zoom: number;
   isSelected: boolean;
@@ -16,6 +17,7 @@ interface TextBoxItemProps {
 
 export default function TextBoxItem({
   theme = 'dark',
+  isPenActive = false,
   item,
   zoom,
   isSelected,
@@ -55,6 +57,7 @@ export default function TextBoxItem({
   return (
     <CanvasItemCard
       theme={theme}
+      isPenActive={isPenActive}
       item={item}
       zoom={zoom}
       isSelected={isSelected}
