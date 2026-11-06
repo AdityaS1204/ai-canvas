@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { ActiveTool } from '@/types/canvas';
 import {
   Pen,
+  Eraser,
   FileText,
   Image as ImageIcon,
   FileVideo,
@@ -114,7 +115,7 @@ export default function FloatingToolbar({
       {/* Pen Options Popup */}
       {showPenOptions && activeTool === 'pen' && (
         <div
-          className={`flex items-center gap-3 px-3 py-2 rounded-2xl backdrop-blur-xl border shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-150 ${
+          className={`flex items-center gap-3 px-3 py-2 rounded-md backdrop-blur-xl border shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-150 ${
             isLight
               ? 'bg-[#ffffff]/95 border-[#d8cfcf] text-[#2d2424]'
               : 'bg-[#241c1c]/95 border-[#524141] text-white'
@@ -214,6 +215,25 @@ export default function FloatingToolbar({
               style={{ backgroundColor: penColor }}
               className="absolute bottom-0.5 right-0.5 w-1.5 h-1.5 rounded-full border border-black"
             />
+          </button>
+        </ToolbarTooltip>
+
+        {/* Eraser tool */}
+        <ToolbarTooltip label="Eraser" shortcut="E" isLight={isLight}>
+          <button
+            type="button"
+            aria-label="Eraser tool"
+            onClick={() => {
+              setActiveTool('eraser');
+              setShowPenOptions(false);
+            }}
+            className={`flex items-center justify-center w-8 h-8 rounded-md transition-all cursor-pointer ${
+              activeTool === 'eraser'
+                ? 'bg-blue-600 text-white shadow-md'
+                : inactiveBtnClass
+            }`}
+          >
+            <Eraser size={16} />
           </button>
         </ToolbarTooltip>
 

@@ -87,8 +87,8 @@ export default function CanvasFrame({
   const R = 20; // Right border thickness
   const B = 20; // Bottom border thickness
 
-  // Bottom center shelf tightly sized to snugly fit the reduced-width toolbar inside with even ~6-8px gap
-  const shelfW = Math.min(Math.max(W - 32, 360), 404);
+  // Bottom center shelf tightly sized to snugly fit the toolbar inside with even ~6-8px gap
+  const shelfW = Math.min(Math.max(W - 32, 380), 438);
   const shelfHeight = 36; // Snug top clearance matching the bottom and side margins
   const shelfX1 = (W - shelfW) / 2;
   const shelfX2 = shelfX1 + shelfW;

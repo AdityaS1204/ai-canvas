@@ -5,6 +5,7 @@ import {
   ActiveTool,
   CanvasItem,
   CanvasState,
+  DrawingPoint,
   DrawingStroke,
   ViewportTransform,
   ItemType,
@@ -46,6 +47,10 @@ export default function InfiniteCanvas() {
   const [activeTool, setActiveTool] = useState<ActiveTool>('select');
   const [penColor, setPenColor] = useState<string>('#2563eb');
   const [penWidth, setPenWidth] = useState<number>(4);
+  const [currentStroke, setCurrentStroke] = useState<DrawingStroke | null>(null);
+  const currentStrokeRef = useRef<DrawingStroke | null>(null);
+  const isDrawing = useRef(false);
+  const isErasing = useRef(false);
   const [showGrid, setShowGrid] = useState(true);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
@@ -280,7 +285,53 @@ export default function InfiniteCanvas() {
     };
   }, []);
 
-  // --- PANNING MECHANICS ---
+  // --- ERASER & STROKE COLLISION UTILITY ---
+  const isPointNearStroke = (
+    eraserPt: DrawingPoint,
+    stroke: DrawingStroke,
+    threshold: number
+  ): boolean => {
+    const points = stroke.points;
+    if (!points || points.length === 0) return false;
+    const strokeThresh = threshold + (stroke.width || 4) / 2;
+    const threshSq = strokeThresh * strokeThresh;
+
+    for (let i = 0; i < points.length; i++) {
+      const p1 = points[i];
+      const dx = p1.x - eraserPt.x;
+      const dy = p1.y - eraserPt.y;
+      if (dx * dx + dy * dy <= threshSq) return true;
+
+      // Check proximity along segment between p1 and p2
+      if (i < points.length - 1) {
+        const p2 = points[i + 1];
+        const segLenSq = (p2.x - p1.x) * (p2.x - p1.x) + (p2.y - p1.y) * (p2.y - p1.y);
+        if (segLenSq > 0) {
+          let t = ((eraserPt.x - p1.x) * (p2.x - p1.x) + (eraserPt.y - p1.y) * (p2.y - p1.y)) / segLenSq;
+          t = Math.max(0, Math.min(1, t));
+          const projX = p1.x + t * (p2.x - p1.x);
+          const projY = p1.y + t * (p2.y - p1.y);
+          const distSq = (eraserPt.x - projX) * (eraserPt.x - projX) + (eraserPt.y - projY) * (eraserPt.y - projY);
+          if (distSq <= threshSq) return true;
+        }
+      }
+    }
+    return false;
+  };
+
+  const eraseStrokesAt = (worldPt: DrawingPoint) => {
+    // 16px screen tolerance radius converted to world coordinates
+    const threshold = 16 / zoom;
+    setStrokes((prev) => {
+      const remaining = prev.filter((s) => !isPointNearStroke(worldPt, s, threshold));
+      if (remaining.length !== prev.length) {
+        return remaining;
+      }
+      return prev;
+    });
+  };
+
+  // --- PANNING & DRAWING MECHANICS ---
   const isPanning = useRef(false);
   const isSpacePressed = useRef(false);
   const panStart = useRef<{ clientX: number; clientY: number; startPanX: number; startPanY: number }>({
@@ -290,14 +341,12 @@ export default function InfiniteCanvas() {
     startPanY: 0,
   });
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (activeTool === 'pen') return;
-
+  const handleCanvasPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     const isMiddleButton = e.button === 1;
     const isLeftButton = e.button === 0;
-    const clickedOnCard = (e.target as HTMLElement).closest('.group');
 
-    if (isMiddleButton || (isLeftButton && (!clickedOnCard || isSpacePressed.current))) {
+    // Middle button or Space+drag -> Pan canvas
+    if (isMiddleButton || isSpacePressed.current) {
       isPanning.current = true;
       panStart.current = {
         clientX: e.clientX,
@@ -305,25 +354,150 @@ export default function InfiniteCanvas() {
         startPanX: pan.x,
         startPanY: pan.y,
       };
+      return;
+    }
+
+    // Pen tool active -> Draw stroke directly on canvas
+    if (activeTool === 'pen' && isLeftButton) {
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      } catch {
+        // Safe fallback if pointer capture isn't available
+      }
+      isDrawing.current = true;
+      const pt: DrawingPoint = {
+        x: Number(((e.clientX - pan.x) / zoom).toFixed(1)),
+        y: Number(((e.clientY - pan.y) / zoom).toFixed(1)),
+      };
+      const newStroke: DrawingStroke = {
+        id: `stroke-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        points: [pt],
+        color: penColor,
+        width: penWidth,
+      };
+      currentStrokeRef.current = newStroke;
+      setCurrentStroke(newStroke);
+      setSelectedItemId(null);
+      return;
+    }
+
+    // Eraser tool active -> Click or start dragging to erase strokes
+    if (activeTool === 'eraser' && isLeftButton) {
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      } catch {
+        // Safe fallback
+      }
+      isErasing.current = true;
+      const pt: DrawingPoint = {
+        x: Number(((e.clientX - pan.x) / zoom).toFixed(1)),
+        y: Number(((e.clientY - pan.y) / zoom).toFixed(1)),
+      };
+      eraseStrokesAt(pt);
+      setSelectedItemId(null);
+      return;
+    }
+
+    // Select tool active -> Left click on background pans canvas, deselects cards
+    if (activeTool === 'select' && isLeftButton) {
+      const clickedOnCard = (e.target as HTMLElement).closest('.group');
       if (!clickedOnCard) {
+        isPanning.current = true;
+        panStart.current = {
+          clientX: e.clientX,
+          clientY: e.clientY,
+          startPanX: pan.x,
+          startPanY: pan.y,
+        };
         setSelectedItemId(null);
       }
     }
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isPanning.current) return;
-    const dx = e.clientX - panStart.current.clientX;
-    const dy = e.clientY - panStart.current.clientY;
-    setPan({
-      x: panStart.current.startPanX + dx,
-      y: panStart.current.startPanY + dy,
-    });
+  const handleCanvasPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    // 1. Panning canvas
+    if (isPanning.current) {
+      const dx = e.clientX - panStart.current.clientX;
+      const dy = e.clientY - panStart.current.clientY;
+      setPan({
+        x: panStart.current.startPanX + dx,
+        y: panStart.current.startPanY + dy,
+      });
+      return;
+    }
+
+    // 2. Drawing stroke with pen
+    if (isDrawing.current && activeTool === 'pen' && currentStrokeRef.current) {
+      const pt: DrawingPoint = {
+        x: Number(((e.clientX - pan.x) / zoom).toFixed(1)),
+        y: Number(((e.clientY - pan.y) / zoom).toFixed(1)),
+      };
+      const pts = currentStrokeRef.current.points;
+      const last = pts[pts.length - 1];
+      // Skip redundant micro-movements (less than 0.8px) for maximum performance
+      if (!last || Math.hypot(last.x - pt.x, last.y - pt.y) >= 0.8) {
+        const updated: DrawingStroke = {
+          ...currentStrokeRef.current,
+          points: [...pts, pt],
+        };
+        currentStrokeRef.current = updated;
+        setCurrentStroke(updated);
+      }
+      return;
+    }
+
+    // 3. Erasing strokes with eraser tool
+    if (isErasing.current && activeTool === 'eraser') {
+      const pt: DrawingPoint = {
+        x: Number(((e.clientX - pan.x) / zoom).toFixed(1)),
+        y: Number(((e.clientY - pan.y) / zoom).toFixed(1)),
+      };
+      eraseStrokesAt(pt);
+    }
   };
 
-  const handleMouseUp = () => {
+  const handleCanvasPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      } catch {
+        // ignore
+      }
+    }
+
     isPanning.current = false;
+    isErasing.current = false;
+
+    // Commit finished drawing stroke to canvas state
+    if (isDrawing.current && currentStrokeRef.current) {
+      isDrawing.current = false;
+      const finalStroke = currentStrokeRef.current;
+      currentStrokeRef.current = null;
+      setCurrentStroke(null);
+      if (finalStroke && finalStroke.points.length > 0) {
+        setStrokes((prev) => [...prev, finalStroke]);
+      }
+    }
   };
+
+  // Safety listener: if pointer is released anywhere outside canvas
+  useEffect(() => {
+    const handleGlobalPointerUp = () => {
+      isPanning.current = false;
+      isErasing.current = false;
+      if (isDrawing.current && currentStrokeRef.current) {
+        isDrawing.current = false;
+        const finalStroke = currentStrokeRef.current;
+        currentStrokeRef.current = null;
+        setCurrentStroke(null);
+        if (finalStroke && finalStroke.points.length > 0) {
+          setStrokes((prev) => [...prev, finalStroke]);
+        }
+      }
+    };
+    window.addEventListener('pointerup', handleGlobalPointerUp);
+    return () => window.removeEventListener('pointerup', handleGlobalPointerUp);
+  }, []);
 
   // Zoom buttons
   const handleZoomIn = () => {
@@ -370,6 +544,16 @@ export default function InfiniteCanvas() {
         setActiveTool('select');
       } else if (e.key === 'p' || e.key === 'P') {
         setActiveTool('pen');
+      } else if (e.key === 'e' || e.key === 'E') {
+        setActiveTool('eraser');
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        // Undo last drawn stroke
+        e.preventDefault();
+        setStrokes((prev) => {
+          if (prev.length === 0) return prev;
+          showToast('Undid drawing');
+          return prev.slice(0, -1);
+        });
       } else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedItemId) {
         handleRemoveItem(selectedItemId);
       }
@@ -488,13 +672,13 @@ export default function InfiniteCanvas() {
     >
       <div
         ref={containerRef}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        className={`relative w-full h-full overflow-hidden select-none transition-colors duration-200 ${
+        onPointerDown={handleCanvasPointerDown}
+        onPointerMove={handleCanvasPointerMove}
+        onPointerUp={handleCanvasPointerUp}
+        className={`relative w-full h-full overflow-hidden select-none touch-none transition-colors duration-200 ${
           theme === 'light' ? 'bg-[#f7f4f4]' : 'bg-[#221b1b]'
         } ${
-          activeTool === 'pen'
+          activeTool === 'pen' || activeTool === 'eraser'
             ? 'cursor-crosshair'
             : isPanning.current
             ? 'cursor-grabbing'
@@ -531,6 +715,7 @@ export default function InfiniteCanvas() {
               zoom,
               isSelected,
               theme,
+              isPenActive: activeTool === 'pen' || activeTool === 'eraser',
               onSelect: handleSelectItem,
               onUpdate: handleUpdateItem,
               onRemove: handleRemoveItem,
@@ -555,10 +740,7 @@ export default function InfiniteCanvas() {
         {/* Drawing Canvas Overlay */}
         <DrawingCanvas
           strokes={strokes}
-          onAddStroke={(s) => setStrokes((prev) => [...prev, s])}
-          isPenActive={activeTool === 'pen'}
-          penColor={penColor}
-          penWidth={penWidth}
+          currentStroke={currentStroke}
           zoom={zoom}
           pan={pan}
         />
