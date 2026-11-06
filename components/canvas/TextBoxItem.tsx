@@ -5,6 +5,7 @@ import { CanvasItem } from '@/types/canvas';
 import CanvasItemCard from './CanvasItemCard';
 
 interface TextBoxItemProps {
+  theme?: 'dark' | 'light';
   item: CanvasItem;
   zoom: number;
   isSelected: boolean;
@@ -14,6 +15,7 @@ interface TextBoxItemProps {
 }
 
 export default function TextBoxItem({
+  theme = 'dark',
   item,
   zoom,
   isSelected,
@@ -52,6 +54,7 @@ export default function TextBoxItem({
 
   return (
     <CanvasItemCard
+      theme={theme}
       item={item}
       zoom={zoom}
       isSelected={isSelected}
@@ -61,7 +64,9 @@ export default function TextBoxItem({
     >
       <div
         onDoubleClick={handleDoubleClick}
-        className="w-full h-full flex flex-col bg-[#d8dade] p-3 rounded-xl select-none"
+        className={`w-full h-full flex flex-col p-3 rounded-xl select-none transition-colors duration-150 ${
+          theme === 'light' ? 'bg-[#f4efe8]' : 'bg-[#d8dade]'
+        }`}
       >
         {isEditing && isSelected ? (
           <textarea

@@ -5,6 +5,7 @@ import { CanvasItem } from '@/types/canvas';
 import { Close } from '@honeyicons/react';
 
 interface CanvasItemCardProps {
+  theme?: 'dark' | 'light';
   item: CanvasItem;
   zoom: number;
   isSelected: boolean;
@@ -15,6 +16,7 @@ interface CanvasItemCardProps {
 }
 
 export default function CanvasItemCard({
+  theme = 'dark',
   item,
   zoom,
   isSelected,
@@ -23,6 +25,7 @@ export default function CanvasItemCard({
   onRemove,
   children,
 }: CanvasItemCardProps) {
+  const isLight = theme === 'light';
   const cardRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
@@ -150,13 +153,21 @@ export default function CanvasItemCard({
         zIndex: isSelected ? 999 : item.zIndex,
       }}
       /* pointer-events-auto ensures full interaction even inside pointer-events-none parent layer */
-      className={`group absolute pointer-events-auto select-none rounded-2xl flex flex-col p-1.5 pt-1 transition-shadow duration-150 ${
-        isDragging ? 'cursor-grabbing ring-2 ring-neutral-400 shadow-2xl shadow-black/80 opacity-95' : 'cursor-grab'
+      className={`group absolute pointer-events-auto select-none rounded-2xl flex flex-col p-1.5 pt-1 transition-all duration-150 ${
+        isDragging
+          ? isLight
+            ? 'cursor-grabbing ring-2 ring-black/40 shadow-2xl shadow-black/15 opacity-95'
+            : 'cursor-grabbing ring-2 ring-neutral-400 shadow-2xl shadow-black/80 opacity-95'
+          : 'cursor-grab'
       } ${
         isSelected
-          ? 'ring-2 ring-neutral-300 shadow-2xl shadow-black/80'
+          ? isLight
+            ? 'ring-2 ring-blue-500 shadow-2xl shadow-black/15'
+            : 'ring-2 ring-neutral-300 shadow-2xl shadow-black/80'
+          : isLight
+          ? 'ring-1 ring-black/10 hover:ring-black/25 shadow-lg shadow-black/5'
           : 'ring-1 ring-white/10 hover:ring-white/25 shadow-xl shadow-black/80'
-      } bg-[#282626]`}
+      } ${isLight ? 'bg-[#ffffff]' : 'bg-[#282626]'}`}
     >
       {/* Top Header Bar matching reference image with close icon on top right */}
       <div
@@ -164,8 +175,8 @@ export default function CanvasItemCard({
       >
         {/* Subtle drag grip handle */}
         <div className="flex items-center gap-1 opacity-20 group-hover:opacity-60 transition-opacity">
-          <div className="w-1.5 h-1.5 rounded-full bg-white" />
-          <div className="w-1.5 h-1.5 rounded-full bg-white" />
+          <div className={`w-1.5 h-1.5 rounded-full ${isLight ? 'bg-black' : 'bg-white'}`} />
+          <div className={`w-1.5 h-1.5 rounded-full ${isLight ? 'bg-black' : 'bg-white'}`} />
         </div>
 
         {/* HoneyIcons Close icon on top-right */}
@@ -176,7 +187,9 @@ export default function CanvasItemCard({
             e.stopPropagation();
             onRemove(item.id);
           }}
-          className="text-white/80 hover:text-white transition-opacity p-0.5 cursor-pointer pointer-events-auto"
+          className={`transition-opacity p-0.5 cursor-pointer pointer-events-auto ${
+            isLight ? 'text-black/60 hover:text-black' : 'text-white/80 hover:text-white'
+          }`}
         >
           <Close size={15} />
         </button>
@@ -193,7 +206,13 @@ export default function CanvasItemCard({
         title="Drag to resize"
         className="resize-handle absolute bottom-1 right-1 w-4 h-4 cursor-nwse-resize flex items-center justify-center opacity-30 hover:opacity-100 transition-opacity pointer-events-auto"
       >
-        <svg width="7" height="7" viewBox="0 0 7 7" fill="none" className="text-white pointer-events-none">
+        <svg
+          width="7"
+          height="7"
+          viewBox="0 0 7 7"
+          fill="none"
+          className={`${isLight ? 'text-black' : 'text-white'} pointer-events-none`}
+        >
           <circle cx="6" cy="6" r="0.8" fill="currentColor" />
           <circle cx="3.5" cy="6" r="0.8" fill="currentColor" />
           <circle cx="6" cy="3.5" r="0.8" fill="currentColor" />

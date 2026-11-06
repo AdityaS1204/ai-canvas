@@ -64,5 +64,7 @@ export interface CloudinaryConfig {
   apiKey?: string;
 }
 
+export type ThemeMode = 'dark' | 'light';
+
 export type ActiveTool = 'select' | 'pan' | 'pen' | 'text' | 'image' | 'video' | 'audio' | 'eraser';
 

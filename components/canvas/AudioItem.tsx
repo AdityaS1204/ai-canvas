@@ -5,6 +5,7 @@ import { CanvasItem } from '@/types/canvas';
 import CanvasItemCard from './CanvasItemCard';
 
 interface AudioItemProps {
+  theme?: 'dark' | 'light';
   item: CanvasItem;
   zoom: number;
   isSelected: boolean;
@@ -14,6 +15,7 @@ interface AudioItemProps {
 }
 
 export default function AudioItem({
+  theme = 'dark',
   item,
   zoom,
   isSelected,
@@ -25,6 +27,7 @@ export default function AudioItem({
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const isLight = theme === 'light';
 
   const togglePlay = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -65,6 +68,7 @@ export default function AudioItem({
 
   return (
     <CanvasItemCard
+      theme={theme}
       item={item}
       zoom={zoom}
       isSelected={isSelected}
@@ -72,7 +76,13 @@ export default function AudioItem({
       onUpdate={onUpdate}
       onRemove={onRemove}
     >
-      <div className="w-full h-full flex flex-col justify-between p-3 bg-black rounded-xl border border-white/10">
+      <div
+        className={`w-full h-full flex flex-col justify-between p-3 rounded-xl border transition-colors duration-150 ${
+          isLight
+            ? 'bg-[#f4efe8] border-black/10 text-[#2d2424]'
+            : 'bg-black border-white/10 text-white'
+        }`}
+      >
         <audio
           ref={audioRef}
           src={item.url}
@@ -84,9 +94,9 @@ export default function AudioItem({
         />
 
         {/* Audio Title / Source */}
-        <div className="flex items-center justify-between text-xs text-white">
+        <div className={`flex items-center justify-between text-xs ${isLight ? 'text-[#2d2424]' : 'text-white'}`}>
           <span className="font-medium truncate max-w-[180px]">{item.title || 'Audio Track'}</span>
-          <span className="text-[10px] text-blue-400 font-medium">Cloudinary</span>
+          <span className="text-[10px] text-blue-500 font-medium">Cloudinary</span>
         </div>
 
         {/* Visualizer animation waves (pure blue, white, black) */}
@@ -99,7 +109,7 @@ export default function AudioItem({
                 transition: 'height 0.2s ease',
               }}
               className={`w-1 rounded-full ${
-                isPlaying ? 'bg-blue-500' : 'bg-white/20'
+                isPlaying ? 'bg-blue-500' : isLight ? 'bg-black/20' : 'bg-white/20'
               }`}
             />
           ))}
@@ -114,10 +124,12 @@ export default function AudioItem({
             max={duration || 100}
             value={currentTime}
             onChange={handleSeek}
-            className="w-full h-1 bg-white/20 rounded-lg appearance-none cursor-pointer accent-blue-500"
+            className={`w-full h-1 rounded-lg appearance-none cursor-pointer accent-blue-500 ${
+              isLight ? 'bg-black/15' : 'bg-white/20'
+            }`}
           />
 
-          <div className="flex items-center justify-between text-xs text-white">
+          <div className={`flex items-center justify-between text-xs ${isLight ? 'text-[#5a4848]' : 'text-white'}`}>
             <button
               type="button"
               onClick={togglePlay}

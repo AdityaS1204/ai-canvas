@@ -6,6 +6,7 @@ import CanvasItemCard from './CanvasItemCard';
 import { parseVideoUrl } from '@/lib/video-parser';
 
 interface VideoItemProps {
+  theme?: 'dark' | 'light';
   item: CanvasItem;
   zoom: number;
   isSelected: boolean;
@@ -15,6 +16,7 @@ interface VideoItemProps {
 }
 
 export default function VideoItem({
+  theme = 'dark',
   item,
   zoom,
   isSelected,
@@ -29,6 +31,7 @@ export default function VideoItem({
 
   return (
     <CanvasItemCard
+      theme={theme}
       item={item}
       zoom={zoom}
       isSelected={isSelected}
