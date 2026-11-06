@@ -2,7 +2,7 @@
 @import "tailwindcss";
 
 :root {
-  --background: #18181b;
+  --background: #221b1b;
   --foreground: #ffffff;
   --primary-blue: #2563eb;
   --primary-blue-hover: #1d4ed8;
@@ -14,7 +14,7 @@ html, body, button, input, textarea, select {
 }
 
 html, body {
-  background: #18181b;
+  background: #403131;
   color: #ffffff;
   user-select: none;
   overflow: hidden;
