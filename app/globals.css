@@ -212,8 +212,8 @@
   .inset-0 {
     inset: 0px;
   }
-  .-top-9 {
-    top: calc(var(--spacing) * -9);
+  .-top-8 {
+    top: calc(var(--spacing) * -8);
   }
   .top-2 {
     top: calc(var(--spacing) * 2);
@@ -230,8 +230,8 @@
   .bottom-1 {
     bottom: var(--spacing);
   }
-  .bottom-1\.5 {
-    bottom: calc(var(--spacing) * 1.5);
+  .bottom-2 {
+    bottom: calc(var(--spacing) * 2);
   }
   .left-1\/2 {
     left: calc(1 / 2 * 100%);
@@ -272,8 +272,8 @@
       max-width: 96rem;
     }
   }
-  .mx-1 {
-    margin-inline: var(--spacing);
+  .mx-0\.5 {
+    margin-inline: calc(var(--spacing) * 0.5);
   }
   .my-auto {
     margin-block: auto;
@@ -338,20 +338,17 @@
   .h-5 {
     height: calc(var(--spacing) * 5);
   }
-  .h-6 {
-    height: calc(var(--spacing) * 6);
-  }
   .h-7 {
     height: calc(var(--spacing) * 7);
+  }
+  .h-7\.5 {
+    height: calc(var(--spacing) * 7.5);
   }
   .h-8 {
     height: calc(var(--spacing) * 8);
   }
   .h-9 {
     height: calc(var(--spacing) * 9);
-  }
-  .h-10 {
-    height: calc(var(--spacing) * 10);
   }
   .h-12 {
     height: calc(var(--spacing) * 12);
@@ -389,11 +386,14 @@
   .w-5 {
     width: calc(var(--spacing) * 5);
   }
+  .w-7\.5 {
+    width: calc(var(--spacing) * 7.5);
+  }
   .w-8 {
     width: calc(var(--spacing) * 8);
   }
-  .w-10 {
-    width: calc(var(--spacing) * 10);
+  .w-9 {
+    width: calc(var(--spacing) * 9);
   }
   .w-\[1px\] {
     width: 1px;
@@ -419,8 +419,8 @@
   .max-w-md {
     max-width: var(--container-md);
   }
-  .min-w-\[42px\] {
-    min-width: 42px;
+  .min-w-\[38px\] {
+    min-width: 38px;
   }
   .flex-1 {
     flex: 1;
@@ -1287,6 +1287,12 @@
     --tw-outline-style: none;
     outline-style: none;
   }
+  .active\:scale-95:active {
+    --tw-scale-x: 95%;
+    --tw-scale-y: 95%;
+    --tw-scale-z: 95%;
+    scale: var(--tw-scale-x) var(--tw-scale-y);
+  }
   .active\:cursor-grabbing:active {
     cursor: grabbing;
   }
@@ -1302,11 +1308,6 @@
   @media (width >= 40rem) {
     .sm\:grid-cols-2 {
       grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-  }
-  @media (width >= 48rem) {
-    .md\:bottom-2 {
-      bottom: calc(var(--spacing) * 2);
     }
   }
 }

@@ -23,6 +23,13 @@ interface CanvasFrameProps {
   overlays?: React.ReactNode;
 }
 
+const SPRING_TRANSITION = {
+  type: 'spring' as const,
+  stiffness: 300,
+  damping: 24,
+  mass: 0.8,
+};
+
 export default function CanvasFrame({
   isCloudinaryConfigured,
   onOpenCloudinaryModal,
@@ -47,7 +54,7 @@ export default function CanvasFrame({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Smoothly animate the SVG notch cutout dimensions when dropdown opens/closes
+  // Smoothly animate the SVG notch cutout dimensions with matched spring physics
   const notchRef = useRef(notch);
   notchRef.current = notch;
 
@@ -58,8 +65,10 @@ export default function CanvasFrame({
     const startH = notchRef.current.h;
 
     const controls = animate(0, 1, {
-      duration: 0.35,
-      ease: [0.16, 1, 0.3, 1],
+      type: 'spring',
+      stiffness: 300,
+      damping: 24,
+      mass: 0.8,
       onUpdate: (progress) => {
         setNotch({
           w: Math.round(startW + (targetW - startW) * progress),
@@ -100,9 +109,9 @@ export default function CanvasFrame({
   const R = 20; // Right border thickness
   const B = 20; // Bottom border thickness
 
-  // Bottom center shelf where floating toolbar sits (responsive & centered)
-  const shelfW = Math.max(500, Math.min(W * 0.45, 540));
-  const shelfHeight = 32;
+  // Bottom center shelf sized to snugly fit the toolbar inside
+  const shelfW = Math.min(Math.max(W - 40, 460), 508);
+  const shelfHeight = 44; // Raised notch height so the toolbar sits fully inside with balanced padding
   const shelfX1 = (W - shelfW) / 2;
   const shelfX2 = shelfX1 + shelfW;
   const shelfY = H - B - shelfHeight;
@@ -200,22 +209,17 @@ export default function CanvasFrame({
         ref={dropdownRef}
         className="fixed top-[23px] left-[23px] z-40 pointer-events-auto select-none"
       >
-        <AnimatePresence mode="wait" initial={false}>
+        <AnimatePresence initial={false}>
           {!isOpen ? (
             /* CLOSED STATE (Matching Image 1): Square setting button in the top-left tab */
             <motion.button
               key="closed-setting-btn"
               layoutId="settings-dropdown-box"
               type="button"
-              title="Settings & Tools"
+              aria-label="Settings & Tools"
               onClick={() => setIsOpen(true)}
-              transition={{
-                type: 'spring',
-                stiffness: 450,
-                damping: 32,
-                mass: 0.8,
-              }}
-              className="w-8 h-8 rounded-lg bg-[#2b2222] hover:bg-[#382b2b] border border-[#524141] hover:border-[#695454] flex items-center justify-center text-white/80 hover:text-white transition-colors cursor-pointer shadow-md"
+              transition={SPRING_TRANSITION}
+              className="w-8 h-8 rounded-xl bg-[#2b2222] hover:bg-[#382b2b] active:scale-95 border border-[#524141] hover:border-[#695454] flex items-center justify-center text-white/80 hover:text-white transition-colors cursor-pointer shadow-md"
             >
               <motion.div layoutId="settings-gear-icon">
                 <Settings size={16} />
@@ -226,13 +230,8 @@ export default function CanvasFrame({
             <motion.div
               key="open-setting-menu"
               layoutId="settings-dropdown-box"
-              transition={{
-                type: 'spring',
-                stiffness: 450,
-                damping: 32,
-                mass: 0.8,
-              }}
-              className="w-[218px] rounded-2xl bg-[#231b1b] border border-[#524141] p-2 flex flex-col gap-1.5 shadow-2xl shadow-black/90"
+              transition={SPRING_TRANSITION}
+              className="w-[218px] rounded-2xl bg-[#231b1b] border border-[#524141] p-2 flex flex-col gap-1.5 shadow-2xl shadow-black/90 overflow-hidden"
             >
               {/* Menu Title / Collapse Bar */}
               <div className="flex items-center justify-between px-1 py-0.5 border-b border-white/10 mb-0.5">

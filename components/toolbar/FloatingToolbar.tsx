@@ -55,7 +55,7 @@ function ToolbarTooltip({ label, shortcut, hidden = false, children }: ToolbarTo
     <div className="relative group/tooltip flex items-center justify-center">
       {children}
       {!hidden && (
-        <div className="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#281f1f] border border-[#524141] text-[11px] font-medium text-white/95 shadow-xl opacity-0 scale-95 group-hover/tooltip:opacity-100 group-hover/tooltip:scale-100 transition-all duration-150 z-50 whitespace-nowrap">
+        <div className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-[#281f1f] border border-[#524141] text-[11px] font-medium text-white/95 shadow-xl opacity-0 scale-95 group-hover/tooltip:opacity-100 group-hover/tooltip:scale-100 transition-all duration-150 z-50 whitespace-nowrap">
           <span>{label}</span>
           {shortcut && (
             <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-[9px] text-white/70 font-mono leading-none">
@@ -88,7 +88,7 @@ export default function FloatingToolbar({
   const [showPenOptions, setShowPenOptions] = useState(false);
 
   return (
-    <div className="fixed bottom-1.5 md:bottom-2 left-1/2 -translate-x-1/2 z-40 flex flex-col items-center gap-2 select-none pointer-events-auto">
+    <div className="fixed bottom-2 left-1/2 -translate-x-1/2 z-40 flex flex-col items-center gap-2 select-none pointer-events-auto">
       {/* Pen Options Popup (only blue, white, black) */}
       {showPenOptions && activeTool === 'pen' && (
         <div className="flex items-center gap-3 px-3 py-2 rounded-2xl bg-[#241c1c]/95 backdrop-blur-xl border border-[#524141] shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-150">
@@ -126,8 +126,8 @@ export default function FloatingToolbar({
         </div>
       )}
 
-      {/* Main Floating Toolbar */}
-      <div className="flex items-center gap-1 p-1.5 rounded-2xl bg-[#241c1c]/95 backdrop-blur-xl border border-[#524141] shadow-2xl shadow-black/90">
+      {/* Main Floating Toolbar - perfectly fitted inside frame notch */}
+      <div className="flex items-center gap-1 p-1 rounded-2xl bg-[#231b1b] border border-[#524141] shadow-xl shadow-black/80">
         {/* Selection / Move tool */}
         <ToolbarTooltip label="Select" shortcut="V">
           <button
@@ -137,13 +137,13 @@ export default function FloatingToolbar({
               setActiveTool('select');
               setShowPenOptions(false);
             }}
-            className={`flex items-center justify-center w-10 h-10 rounded-xl transition-all cursor-pointer ${
+            className={`flex items-center justify-center w-9 h-9 rounded-xl transition-all cursor-pointer ${
               activeTool === 'select'
                 ? 'bg-blue-600 text-white shadow-md'
                 : 'text-white/60 hover:text-white hover:bg-white/10'
             }`}
           >
-            <Pointer size={20} />
+            <Pointer size={18} />
           </button>
         </ToolbarTooltip>
 
@@ -156,13 +156,13 @@ export default function FloatingToolbar({
               setActiveTool('pen');
               setShowPenOptions(!showPenOptions || activeTool !== 'pen');
             }}
-            className={`relative flex items-center justify-center w-10 h-10 rounded-xl transition-all cursor-pointer ${
+            className={`relative flex items-center justify-center w-9 h-9 rounded-xl transition-all cursor-pointer ${
               activeTool === 'pen'
                 ? 'bg-blue-600 text-white shadow-md'
                 : 'text-white/60 hover:text-white hover:bg-white/10'
             }`}
           >
-            <Pen size={20} />
+            <Pen size={18} />
             <span
               style={{ backgroundColor: penColor }}
               className="absolute bottom-1 right-1 w-2 h-2 rounded-full border border-black"
@@ -179,9 +179,9 @@ export default function FloatingToolbar({
               setShowPenOptions(false);
               onAddTextBox();
             }}
-            className="flex items-center justify-center w-10 h-10 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+            className="flex items-center justify-center w-9 h-9 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
           >
-            <FileText size={20} />
+            <FileText size={18} />
           </button>
         </ToolbarTooltip>
 
@@ -194,9 +194,9 @@ export default function FloatingToolbar({
               setShowPenOptions(false);
               onOpenUploadModal('image');
             }}
-            className="flex items-center justify-center w-10 h-10 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+            className="flex items-center justify-center w-9 h-9 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
           >
-            <ImageIcon size={20} />
+            <ImageIcon size={18} />
           </button>
         </ToolbarTooltip>
 
@@ -209,9 +209,9 @@ export default function FloatingToolbar({
               setShowPenOptions(false);
               onOpenUploadModal('video');
             }}
-            className="flex items-center justify-center w-10 h-10 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+            className="flex items-center justify-center w-9 h-9 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
           >
-            <FileVideo size={20} />
+            <FileVideo size={18} />
           </button>
         </ToolbarTooltip>
 
@@ -224,13 +224,13 @@ export default function FloatingToolbar({
               setShowPenOptions(false);
               onOpenUploadModal('audio');
             }}
-            className="flex items-center justify-center w-10 h-10 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+            className="flex items-center justify-center w-9 h-9 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
           >
-            <MusicNote size={20} />
+            <MusicNote size={18} />
           </button>
         </ToolbarTooltip>
 
-        <div className="h-6 w-[1px] bg-white/15 mx-1" />
+        <div className="h-5 w-[1px] bg-white/15 mx-0.5" />
 
         {/* Cloudinary Storage Config */}
         <ToolbarTooltip label="Cloudinary">
@@ -238,9 +238,9 @@ export default function FloatingToolbar({
             type="button"
             aria-label="Cloudinary Storage Settings"
             onClick={onOpenCloudinaryModal}
-            className="flex items-center justify-center w-10 h-10 rounded-xl text-blue-400 hover:text-white hover:bg-blue-600/20 transition-all cursor-pointer"
+            className="flex items-center justify-center w-9 h-9 rounded-xl text-blue-400 hover:text-white hover:bg-blue-600/20 transition-all cursor-pointer"
           >
-            <CloudUpload size={20} />
+            <CloudUpload size={18} />
           </button>
         </ToolbarTooltip>
 
@@ -250,22 +250,22 @@ export default function FloatingToolbar({
             type="button"
             aria-label="View & Export Canvas JSON"
             onClick={onOpenJsonModal}
-            className="flex items-center justify-center w-10 h-10 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+            className="flex items-center justify-center w-9 h-9 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
           >
-            <Download size={20} />
+            <Download size={18} />
           </button>
         </ToolbarTooltip>
 
-        <div className="h-6 w-[1px] bg-white/15 mx-1" />
+        <div className="h-5 w-[1px] bg-white/15 mx-0.5" />
 
         {/* Zoom Controls (Zoom Out & Zoom In have NO tooltip as requested) */}
         <button
           type="button"
           aria-label="Zoom Out"
           onClick={onZoomOut}
-          className="flex items-center justify-center w-8 h-8 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+          className="flex items-center justify-center w-7.5 h-7.5 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
         >
-          <ZoomOut size={16} />
+          <ZoomOut size={15} />
         </button>
 
         <ToolbarTooltip label="Reset View (100%)">
@@ -273,7 +273,7 @@ export default function FloatingToolbar({
             type="button"
             aria-label="Reset Zoom (100%)"
             onClick={onResetZoom}
-            className="px-2 py-1 text-[11px] font-mono text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-all cursor-pointer min-w-[42px] text-center"
+            className="px-1.5 py-0.5 text-[11px] font-mono text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-all cursor-pointer min-w-[38px] text-center"
           >
             {Math.round(zoom * 100)}%
           </button>
@@ -283,9 +283,9 @@ export default function FloatingToolbar({
           type="button"
           aria-label="Zoom In"
           onClick={onZoomIn}
-          className="flex items-center justify-center w-8 h-8 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+          className="flex items-center justify-center w-7.5 h-7.5 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
         >
-          <ZoomIn size={16} />
+          <ZoomIn size={15} />
         </button>
       </div>
     </div>
