@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { ActiveTool } from '@/types/canvas';
+import { ActiveTool, ShapeKind } from '@/types/canvas';
 import {
   Pen,
   Eraser,
@@ -33,6 +33,7 @@ interface FloatingToolbarProps {
   onOpenJsonModal: () => void;
   onOpenCloudinaryModal: () => void;
   onClearCanvas: () => void;
+  onAddShape: (kind: ShapeKind) => void;
   onDimensionsChange?: (dims: { width: number; height: number }) => void;
 }
 
@@ -107,6 +108,47 @@ function ShapeIcon({ size = 17, className = '' }: { size?: number; className?: s
   );
 }
 
+// Basic shapes list with vector icons
+const SHAPES_LIST: { kind: ShapeKind; label: string; icon: React.ReactNode }[] = [
+  {
+    kind: 'rectangle',
+    label: 'Rectangle',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="5" width="18" height="14" rx="2" />
+      </svg>
+    ),
+  },
+  {
+    kind: 'circle',
+    label: 'Circle',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="9" />
+      </svg>
+    ),
+  },
+  {
+    kind: 'line',
+    label: 'Line',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="4" y1="20" x2="20" y2="4" />
+      </svg>
+    ),
+  },
+  {
+    kind: 'arrow',
+    label: 'Arrow',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="5" y1="19" x2="19" y2="5" />
+        <polyline points="10 5 19 5 19 14" />
+      </svg>
+    ),
+  },
+];
+
 export default function FloatingToolbar({
   theme = 'dark',
   activeTool,
@@ -123,11 +165,27 @@ export default function FloatingToolbar({
   onOpenUploadModal,
   onOpenJsonModal,
   onOpenCloudinaryModal,
+  onAddShape,
   onDimensionsChange,
 }: FloatingToolbarProps) {
   const [showPenOptions, setShowPenOptions] = useState(false);
+  const [showShapesMenu, setShowShapesMenu] = useState(false);
+  const shapesRef = useRef<HTMLDivElement>(null);
   const toolbarContainerRef = useRef<HTMLDivElement>(null);
   const isLight = theme === 'light';
+
+  // Close shapes menu on outside click
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (shapesRef.current && !shapesRef.current.contains(e.target as Node)) {
+        setShowShapesMenu(false);
+      }
+    };
+    if (showShapesMenu) {
+      document.addEventListener('mousedown', handleOutsideClick);
+    }
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [showShapesMenu]);
 
   // Report measured toolbar dimensions to align the SVG notch shelf pixel-perfectly
   useEffect(() => {
@@ -291,24 +349,58 @@ export default function FloatingToolbar({
           </button>
         </ToolbarTooltip>
 
-        {/* Shapes tool */}
-        <ToolbarTooltip label="Shapes" shortcut="S" isLight={isLight}>
-          <button
-            type="button"
-            aria-label="Shapes tool"
-            onClick={() => {
-              setActiveTool('shape');
-              setShowPenOptions(false);
-            }}
-            className={`flex items-center justify-center w-9 h-9 rounded-md transition-all cursor-pointer ${
-              activeTool === 'shape'
-                ? 'bg-blue-600 text-white shadow-md'
-                : inactiveBtnClass
-            }`}
-          >
-            <ShapeIcon size={17} />
-          </button>
-        </ToolbarTooltip>
+        {/* Shapes tool with upward popup */}
+        <div ref={shapesRef} className="relative flex items-center justify-center">
+          <ToolbarTooltip label="Shapes" shortcut="S" hidden={showShapesMenu} isLight={isLight}>
+            <button
+              type="button"
+              aria-label="Shapes tool"
+              onClick={() => {
+                setShowShapesMenu((prev) => !prev);
+                setShowPenOptions(false);
+              }}
+              className={`flex items-center justify-center w-9 h-9 rounded-md transition-all cursor-pointer ${
+                showShapesMenu || activeTool === 'shape'
+                  ? 'bg-blue-600 text-white shadow-md'
+                  : inactiveBtnClass
+              }`}
+            >
+              <ShapeIcon size={17} />
+            </button>
+          </ToolbarTooltip>
+
+          {/* Upward-opening shapes menu */}
+          {showShapesMenu && (
+            <div
+              className={`absolute bottom-full mb-3 left-1/2 -translate-x-1/2 flex items-center gap-1 p-1 rounded-md backdrop-blur-xl border shadow-2xl z-50 animate-in fade-in slide-in-from-bottom-2 duration-150 whitespace-nowrap ${
+                isLight
+                  ? 'bg-[#ffffff]/95 border-[#d8cfcf] text-[#2d2424] shadow-black/10'
+                  : 'bg-[#241c1c]/95 border-[#524141] text-white shadow-black/80'
+              }`}
+            >
+              {SHAPES_LIST.map((shape) => (
+                <ToolbarTooltip key={shape.kind} label={shape.label} isLight={isLight}>
+                  <button
+                    type="button"
+                    aria-label={`Add ${shape.label}`}
+                    onClick={() => {
+                      onAddShape?.(shape.kind);
+                      setActiveTool('select');
+                      setShowShapesMenu(false);
+                    }}
+                    className={`flex items-center justify-center w-9 h-9 rounded-md transition-colors cursor-pointer ${
+                      isLight
+                        ? 'text-[#5a4848] hover:text-[#18181b] hover:bg-black/5'
+                        : 'text-white/70 hover:text-white hover:bg-white/10'
+                    }`}
+                  >
+                    {shape.icon}
+                  </button>
+                </ToolbarTooltip>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Text tool - Clicking immediately opens a new text box on canvas */}
         <ToolbarTooltip label="Text" isLight={isLight}>

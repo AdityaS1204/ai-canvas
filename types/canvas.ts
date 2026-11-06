@@ -1,4 +1,5 @@
-export type ItemType = 'text' | 'image' | 'video' | 'audio';
+export type ItemType = 'text' | 'image' | 'video' | 'audio' | 'shape';
+export type ShapeKind = 'rectangle' | 'circle' | 'line' | 'arrow';
 
 export interface StorageMeta {
   provider: 'cloudinary' | 'external' | 'local';
@@ -29,6 +30,11 @@ export interface CanvasItem {
   title?: string;
   aspectRatio?: number;
   storageMeta?: StorageMeta;
+  // Shape specific
+  shapeKind?: ShapeKind;
+  strokeColor?: string;
+  fillColor?: string;
+  strokeWidth?: number;
   createdAt: number;
 }
 

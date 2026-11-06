@@ -9,6 +9,7 @@ import {
   DrawingStroke,
   ViewportTransform,
   ItemType,
+  ShapeKind,
   StorageMeta,
   CloudinaryConfig,
 } from '@/types/canvas';
@@ -24,6 +25,7 @@ import TextBoxItem from './TextBoxItem';
 import ImageItem from './ImageItem';
 import VideoItem from './VideoItem';
 import AudioItem from './AudioItem';
+import ShapeItem from './ShapeItem';
 import DrawingCanvas from './DrawingCanvas';
 import CanvasFrame from './CanvasFrame';
 import FloatingToolbar from '../toolbar/FloatingToolbar';
@@ -218,6 +220,41 @@ export default function InfiniteCanvas() {
     setItems((prev) => [...prev, newItem]);
     setSelectedItemId(newItem.id);
     showToast(`Added ${data.type} to canvas`);
+  };
+
+  // Add Shape Item (rectangle, circle, line, arrow)
+  const handleAddShape = (kind: ShapeKind) => {
+    const center = getViewCenterWorld();
+    const maxZ = Math.max(...items.map((i) => i.zIndex), 0) + 1;
+
+    let width = 200;
+    let height = 140;
+    if (kind === 'circle') {
+      width = 160;
+      height = 160;
+    } else if (kind === 'line' || kind === 'arrow') {
+      width = 200;
+      height = 40;
+    }
+
+    const newShape: CanvasItem = {
+      id: `shape-${kind}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      type: 'shape',
+      shapeKind: kind,
+      x: Math.round(center.x - width / 2),
+      y: Math.round(center.y - height / 2),
+      width,
+      height,
+      strokeColor: '#3b82f6',
+      fillColor: kind === 'line' || kind === 'arrow' ? 'transparent' : 'rgba(59, 130, 246, 0.12)',
+      strokeWidth: 3,
+      zIndex: maxZ,
+      createdAt: Date.now(),
+    };
+
+    setItems((prev) => [...prev, newShape]);
+    setSelectedItemId(newShape.id);
+    showToast(`Added ${kind} to canvas`);
   };
 
   // --- NATIVE NON-PASSIVE WHEEL LISTENER (PREVENTS BROWSER PAGE ZOOM) ---
@@ -605,6 +642,7 @@ export default function InfiniteCanvas() {
             onOpenUploadModal={(type) => setUploadModalType(type)}
             onOpenJsonModal={() => setIsJsonModalOpen(true)}
             onOpenCloudinaryModal={() => setIsCloudinaryModalOpen(true)}
+            onAddShape={handleAddShape}
             onClearCanvas={() => setItems([])}
             onDimensionsChange={setToolbarDims}
           />
@@ -726,6 +764,9 @@ export default function InfiniteCanvas() {
               onRemove: handleRemoveItem,
             };
 
+            if (item.type === 'shape') {
+              return <ShapeItem key={item.id} {...commonProps} />;
+            }
             if (item.type === 'text') {
               return <TextBoxItem key={item.id} {...commonProps} />;
             }

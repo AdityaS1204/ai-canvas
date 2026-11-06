@@ -115,8 +115,10 @@ export default function CanvasItemCard({
       } else if (isResizing) {
         const deltaX = (e.clientX - resizeStartRef.current.mouseX) / zoom;
         const deltaY = (e.clientY - resizeStartRef.current.mouseY) / zoom;
-        const newWidth = Math.max(200, Math.round(resizeStartRef.current.startW + deltaX));
-        const newHeight = Math.max(120, Math.round(resizeStartRef.current.startH + deltaY));
+        const minW = item.type === 'shape' ? 40 : 200;
+        const minH = item.type === 'shape' ? 40 : 120;
+        const newWidth = Math.max(minW, Math.round(resizeStartRef.current.startW + deltaX));
+        const newHeight = Math.max(minH, Math.round(resizeStartRef.current.startH + deltaY));
         onUpdate(item.id, {
           width: newWidth,
           height: newHeight,
