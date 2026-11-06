@@ -35,7 +35,7 @@ export default function CanvasFrame({
 }: CanvasFrameProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [dims, setDims] = useState({ w: 1200, h: 800 });
-  const [notch, setNotch] = useState({ w: 42, h: 42 });
+  const [notch, setNotch] = useState({ w: 38, h: 38 });
 
   // Update window dimensions
   useEffect(() => {
@@ -52,13 +52,13 @@ export default function CanvasFrame({
   notchRef.current = notch;
 
   useEffect(() => {
-    const targetW = isOpen ? 228 : 42;
-    const targetH = isOpen ? 276 : 42;
+    const targetW = isOpen ? 228 : 38;
+    const targetH = isOpen ? 272 : 38;
     const startW = notchRef.current.w;
     const startH = notchRef.current.h;
 
     const controls = animate(0, 1, {
-      duration: 0.38,
+      duration: 0.35,
       ease: [0.16, 1, 0.3, 1],
       onUpdate: (progress) => {
         setNotch({
@@ -93,68 +93,76 @@ export default function CanvasFrame({
     };
   }, [isOpen]);
 
-  // Compute inner cutout path with concave and convex fillets matching user reference design
+  // Compute responsive frame path using exact Figma cubic bezier formulas
   const { w: W, h: H } = dims;
-  const T = 28; // Top border thickness
-  const L = 28; // Left border thickness
-  const R = 28; // Right border thickness
-  const B = 28; // Bottom border thickness
-  const r = 16; // Corner radius
+  const T = 20; // Top border thickness
+  const L = 20; // Left border thickness
+  const R = 20; // Right border thickness
+  const B = 20; // Bottom border thickness
 
-  // Bottom center shelf where floating toolbar sits
-  const shelfW = Math.min(Math.max(W * 0.45, 520), 580);
-  const shelfH = 46; // Extra shelf height into canvas
+  // Bottom center shelf where floating toolbar sits (responsive & centered)
+  const shelfW = Math.max(500, Math.min(W * 0.45, 540));
+  const shelfHeight = 32;
   const shelfX1 = (W - shelfW) / 2;
   const shelfX2 = shelfX1 + shelfW;
+  const shelfY = H - B - shelfHeight;
 
   const nw = notch.w;
   const nh = notch.h;
 
+  // Exact cubic bezier offsets from Figma SVG export
+  const r1 = 7, r2 = 6, r3 = 7;
+  const k7 = 3.866; // 7 * (1 - 0.4477)
+  const k6 = 3.314; // 6 * (1 - 0.4477)
+  const k12 = 6.627; // 12 * (1 - 0.4477)
+
   const innerCutoutPath = [
-    // 1. Start on top edge after top-left notch
-    `M ${L + nw + r} ${T}`,
-    // 2. Go to top-right corner
-    `H ${W - R - r}`,
-    `A ${r} ${r} 0 0 1 ${W - R} ${T + r}`,
-    // 3. Go down right edge
-    `V ${H - B - r}`,
-    `A ${r} ${r} 0 0 1 ${W - R - r} ${H - B}`,
-    // 4. Go left along bottom edge to right side of center shelf
-    `H ${shelfX2 + r}`,
-    // 5. Inverted corner into shelf right edge (concave: sweep=0)
-    `A ${r} ${r} 0 0 0 ${shelfX2} ${H - B - r}`,
-    // 6. Go up right side of shelf
-    `V ${H - B - shelfH + r}`,
-    // 7. Shelf top-right corner (convex: sweep=1)
-    `A ${r} ${r} 0 0 1 ${shelfX2 - r} ${H - B - shelfH}`,
-    // 8. Go across top of shelf
-    `H ${shelfX1 + r}`,
-    // 9. Shelf top-left corner (convex: sweep=1)
-    `A ${r} ${r} 0 0 1 ${shelfX1} ${H - B - shelfH + r}`,
-    // 10. Go down left side of shelf
-    `V ${H - B - r}`,
-    // 11. Inverted corner out of shelf left edge (concave: sweep=0)
-    `A ${r} ${r} 0 0 0 ${shelfX1 - r} ${H - B}`,
-    // 12. Go to bottom-left corner
-    `H ${L + r}`,
-    `A ${r} ${r} 0 0 1 ${L} ${H - B - r}`,
-    // 13. Go up left edge to bottom of top-left notch
-    `V ${T + nh + r}`,
-    // 14. Inverted corner into top notch bottom (concave: sweep=0)
-    `A ${r} ${r} 0 0 0 ${L + r} ${T + nh}`,
-    // 15. Go across bottom of top notch
-    `H ${L + nw - r}`,
-    // 16. Top notch bottom-right corner (convex: sweep=1)
-    `A ${r} ${r} 0 0 1 ${L + nw} ${T + nh - r}`,
-    // 17. Go up right side of top notch
-    `V ${T + r}`,
-    // 18. Inverted corner out of top notch (concave: sweep=0)
-    `A ${r} ${r} 0 0 0 ${L + nw + r} ${T}`,
+    `M ${(L + nw + r1).toFixed(2)} ${T}`,
+    // 1. Fillet into notch
+    `C ${(L + nw + r1 - k7).toFixed(2)} ${T} ${(L + nw).toFixed(2)} ${(T + 7 - k7).toFixed(2)} ${(L + nw).toFixed(2)} ${(T + r1).toFixed(2)}`,
+    // 2. Down notch right edge
+    `V ${(T + nh - r2).toFixed(2)}`,
+    // 3. Notch corner fillet
+    `C ${(L + nw).toFixed(2)} ${(T + nh - r2 + k6).toFixed(2)} ${(L + nw - r2 + k6).toFixed(2)} ${(T + nh).toFixed(2)} ${(L + nw - r2).toFixed(2)} ${(T + nh).toFixed(2)}`,
+    // 4. Across notch bottom
+    `H ${(L + r3).toFixed(2)}`,
+    // 5. Fillet out of notch to left edge
+    `C ${(L + 7 - k7).toFixed(2)} ${(T + nh).toFixed(2)} ${L} ${(T + nh + 7 - k7).toFixed(2)} ${L} ${(T + nh + r3).toFixed(2)}`,
+    // 6. Down left edge
+    `V ${(H - B - 7).toFixed(2)}`,
+    // 7. Bottom-left corner
+    `C ${L} ${(H - B - 7 + k7).toFixed(2)} ${(L + 7 - k7).toFixed(2)} ${(H - B).toFixed(2)} ${(L + 7).toFixed(2)} ${(H - B).toFixed(2)}`,
+    // 8. Along bottom edge to shelf
+    `H ${(shelfX1 - 7).toFixed(2)}`,
+    // 9. Shelf left fillet in
+    `C ${(shelfX1 - 7 + k7).toFixed(2)} ${(H - B).toFixed(2)} ${shelfX1.toFixed(2)} ${(H - B - 7 + k7).toFixed(2)} ${shelfX1.toFixed(2)} ${(H - B - 7).toFixed(2)}`,
+    // 10. Up left side of shelf
+    `V ${(shelfY + 7).toFixed(2)}`,
+    // 11. Shelf left-top fillet
+    `C ${shelfX1.toFixed(2)} ${(shelfY + 7 - k7).toFixed(2)} ${(shelfX1 + 7 - k7).toFixed(2)} ${shelfY.toFixed(2)} ${(shelfX1 + 7).toFixed(2)} ${shelfY.toFixed(2)}`,
+    // 12. Across shelf top
+    `H ${(shelfX2 - 7).toFixed(2)}`,
+    // 13. Shelf right-top fillet
+    `C ${(shelfX2 - 7 + k7).toFixed(2)} ${shelfY.toFixed(2)} ${shelfX2.toFixed(2)} ${(shelfY + 7 - k7).toFixed(2)} ${shelfX2.toFixed(2)} ${(shelfY + 7).toFixed(2)}`,
+    // 14. Down right side of shelf
+    `V ${(H - B - 7).toFixed(2)}`,
+    // 15. Shelf right fillet out
+    `C ${shelfX2.toFixed(2)} ${(H - B - 7 + k7).toFixed(2)} ${(shelfX2 + 7 - k7).toFixed(2)} ${(H - B).toFixed(2)} ${(shelfX2 + 7).toFixed(2)} ${(H - B).toFixed(2)}`,
+    // 16. Along bottom edge to bottom-right corner
+    `H ${(W - R - 12).toFixed(2)}`,
+    // 17. Bottom-right corner (R=12)
+    `C ${(W - R - 12 + k12).toFixed(2)} ${(H - B).toFixed(2)} ${(W - R).toFixed(2)} ${(H - B - 12 + k12).toFixed(2)} ${(W - R).toFixed(2)} ${(H - B - 12).toFixed(2)}`,
+    // 18. Up right edge
+    `V ${(T + 12).toFixed(2)}`,
+    // 19. Top-right corner (R=12)
+    `C ${(W - R).toFixed(2)} ${(T + 12 - k12).toFixed(2)} ${(W - R - 12 + k12).toFixed(2)} ${T} ${(W - R - 12).toFixed(2)} ${T}`,
+    // 20. Across top edge back to start
+    `H ${(L + nw + r1).toFixed(2)}`,
     `Z`,
   ].join(' ');
 
   // Combined frame path: outer viewport rect + inner cutout with evenodd fill rule
-  const framePath = `M 0 0 H ${W} V ${H} H 0 Z ${innerCutoutPath}`;
+  const framePath = `M ${W} ${H} H 0 V 0 H ${W} V ${H} Z ${innerCutoutPath}`;
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-[#403131]">
@@ -190,7 +198,7 @@ export default function CanvasFrame({
       {/* 4. Top-Left Setting Button & Morphing Dropdown (using layoutId from motion/react) */}
       <div
         ref={dropdownRef}
-        className="fixed top-2.5 left-2.5 z-40 pointer-events-auto select-none"
+        className="fixed top-[23px] left-[23px] z-40 pointer-events-auto select-none"
       >
         <AnimatePresence mode="wait" initial={false}>
           {!isOpen ? (

@@ -8,7 +8,7 @@ import {
   Image as ImageIcon,
   FileVideo,
   MusicNote,
-  Cursor,
+  Pointer,
   ZoomIn,
   ZoomOut,
   Download,
@@ -88,7 +88,7 @@ export default function FloatingToolbar({
   const [showPenOptions, setShowPenOptions] = useState(false);
 
   return (
-    <div className="fixed bottom-2.5 md:bottom-3 left-1/2 -translate-x-1/2 z-40 flex flex-col items-center gap-2 select-none pointer-events-auto">
+    <div className="fixed bottom-1.5 md:bottom-2 left-1/2 -translate-x-1/2 z-40 flex flex-col items-center gap-2 select-none pointer-events-auto">
       {/* Pen Options Popup (only blue, white, black) */}
       {showPenOptions && activeTool === 'pen' && (
         <div className="flex items-center gap-3 px-3 py-2 rounded-2xl bg-[#241c1c]/95 backdrop-blur-xl border border-[#524141] shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-150">
@@ -143,7 +143,7 @@ export default function FloatingToolbar({
                 : 'text-white/60 hover:text-white hover:bg-white/10'
             }`}
           >
-            <Cursor size={20} />
+            <Pointer size={20} />
           </button>
         </ToolbarTooltip>
 

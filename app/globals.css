@@ -218,11 +218,11 @@
   .top-2 {
     top: calc(var(--spacing) * 2);
   }
-  .top-2\.5 {
-    top: calc(var(--spacing) * 2.5);
-  }
   .top-6 {
     top: calc(var(--spacing) * 6);
+  }
+  .top-\[23px\] {
+    top: 23px;
   }
   .right-1 {
     right: var(--spacing);
@@ -230,8 +230,8 @@
   .bottom-1 {
     bottom: var(--spacing);
   }
-  .bottom-2\.5 {
-    bottom: calc(var(--spacing) * 2.5);
+  .bottom-1\.5 {
+    bottom: calc(var(--spacing) * 1.5);
   }
   .left-1\/2 {
     left: calc(1 / 2 * 100%);
@@ -239,8 +239,8 @@
   .left-2 {
     left: calc(var(--spacing) * 2);
   }
-  .left-2\.5 {
-    left: calc(var(--spacing) * 2.5);
+  .left-\[23px\] {
+    left: 23px;
   }
   .z-10 {
     z-index: 10;
@@ -1305,8 +1305,8 @@
     }
   }
   @media (width >= 48rem) {
-    .md\:bottom-3 {
-      bottom: calc(var(--spacing) * 3);
+    .md\:bottom-2 {
+      bottom: calc(var(--spacing) * 2);
     }
   }
 }
