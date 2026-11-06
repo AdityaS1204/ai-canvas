@@ -43,6 +43,31 @@ const PEN_COLORS = [
   '#000000', // Black
 ];
 
+interface ToolbarTooltipProps {
+  label: string;
+  shortcut?: string;
+  hidden?: boolean;
+  children: React.ReactNode;
+}
+
+function ToolbarTooltip({ label, shortcut, hidden = false, children }: ToolbarTooltipProps) {
+  return (
+    <div className="relative group/tooltip flex items-center justify-center">
+      {children}
+      {!hidden && (
+        <div className="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#281f1f] border border-[#524141] text-[11px] font-medium text-white/95 shadow-xl opacity-0 scale-95 group-hover/tooltip:opacity-100 group-hover/tooltip:scale-100 transition-all duration-150 z-50 whitespace-nowrap">
+          <span>{label}</span>
+          {shortcut && (
+            <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-[9px] text-white/70 font-mono leading-none">
+              {shortcut}
+            </kbd>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function FloatingToolbar({
   activeTool,
   setActiveTool,
@@ -104,141 +129,159 @@ export default function FloatingToolbar({
       {/* Main Floating Toolbar */}
       <div className="flex items-center gap-1 p-1.5 rounded-2xl bg-[#241c1c]/95 backdrop-blur-xl border border-[#524141] shadow-2xl shadow-black/90">
         {/* Selection / Move tool */}
-        <button
-          type="button"
-          title="Select / Move"
-          onClick={() => {
-            setActiveTool('select');
-            setShowPenOptions(false);
-          }}
-          className={`flex items-center justify-center w-10 h-10 rounded-xl transition-all cursor-pointer ${
-            activeTool === 'select'
-              ? 'bg-blue-600 text-white shadow-md'
-              : 'text-white/60 hover:text-white hover:bg-white/10'
-          }`}
-        >
-          <Cursor size={20} />
-        </button>
+        <ToolbarTooltip label="Select" shortcut="V">
+          <button
+            type="button"
+            aria-label="Select tool"
+            onClick={() => {
+              setActiveTool('select');
+              setShowPenOptions(false);
+            }}
+            className={`flex items-center justify-center w-10 h-10 rounded-xl transition-all cursor-pointer ${
+              activeTool === 'select'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'text-white/60 hover:text-white hover:bg-white/10'
+            }`}
+          >
+            <Cursor size={20} />
+          </button>
+        </ToolbarTooltip>
 
         {/* Pen tool */}
-        <button
-          type="button"
-          title="Pen Tool"
-          onClick={() => {
-            setActiveTool('pen');
-            setShowPenOptions(!showPenOptions || activeTool !== 'pen');
-          }}
-          className={`relative flex items-center justify-center w-10 h-10 rounded-xl transition-all cursor-pointer ${
-            activeTool === 'pen'
-              ? 'bg-blue-600 text-white shadow-md'
-              : 'text-white/60 hover:text-white hover:bg-white/10'
-          }`}
-        >
-          <Pen size={20} />
-          <span
-            style={{ backgroundColor: penColor }}
-            className="absolute bottom-1 right-1 w-2 h-2 rounded-full border border-black"
-          />
-        </button>
+        <ToolbarTooltip label="Draw / Pen" shortcut="P" hidden={showPenOptions && activeTool === 'pen'}>
+          <button
+            type="button"
+            aria-label="Pen tool"
+            onClick={() => {
+              setActiveTool('pen');
+              setShowPenOptions(!showPenOptions || activeTool !== 'pen');
+            }}
+            className={`relative flex items-center justify-center w-10 h-10 rounded-xl transition-all cursor-pointer ${
+              activeTool === 'pen'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'text-white/60 hover:text-white hover:bg-white/10'
+            }`}
+          >
+            <Pen size={20} />
+            <span
+              style={{ backgroundColor: penColor }}
+              className="absolute bottom-1 right-1 w-2 h-2 rounded-full border border-black"
+            />
+          </button>
+        </ToolbarTooltip>
 
         {/* Text tool - Clicking immediately opens a new text box on canvas */}
-        <button
-          type="button"
-          title="Add Text Box"
-          onClick={() => {
-            setShowPenOptions(false);
-            onAddTextBox();
-          }}
-          className="flex items-center justify-center w-10 h-10 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
-        >
-          <FileText size={20} />
-        </button>
+        <ToolbarTooltip label="Text">
+          <button
+            type="button"
+            aria-label="Add Text Box"
+            onClick={() => {
+              setShowPenOptions(false);
+              onAddTextBox();
+            }}
+            className="flex items-center justify-center w-10 h-10 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+          >
+            <FileText size={20} />
+          </button>
+        </ToolbarTooltip>
 
         {/* Image tool */}
-        <button
-          type="button"
-          title="Add Image"
-          onClick={() => {
-            setShowPenOptions(false);
-            onOpenUploadModal('image');
-          }}
-          className="flex items-center justify-center w-10 h-10 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
-        >
-          <ImageIcon size={20} />
-        </button>
+        <ToolbarTooltip label="Image">
+          <button
+            type="button"
+            aria-label="Add Image"
+            onClick={() => {
+              setShowPenOptions(false);
+              onOpenUploadModal('image');
+            }}
+            className="flex items-center justify-center w-10 h-10 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+          >
+            <ImageIcon size={20} />
+          </button>
+        </ToolbarTooltip>
 
         {/* Video tool */}
-        <button
-          type="button"
-          title="Add Video"
-          onClick={() => {
-            setShowPenOptions(false);
-            onOpenUploadModal('video');
-          }}
-          className="flex items-center justify-center w-10 h-10 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
-        >
-          <FileVideo size={20} />
-        </button>
+        <ToolbarTooltip label="Video">
+          <button
+            type="button"
+            aria-label="Add Video"
+            onClick={() => {
+              setShowPenOptions(false);
+              onOpenUploadModal('video');
+            }}
+            className="flex items-center justify-center w-10 h-10 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+          >
+            <FileVideo size={20} />
+          </button>
+        </ToolbarTooltip>
 
         {/* Audio tool */}
-        <button
-          type="button"
-          title="Add Audio Track"
-          onClick={() => {
-            setShowPenOptions(false);
-            onOpenUploadModal('audio');
-          }}
-          className="flex items-center justify-center w-10 h-10 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
-        >
-          <MusicNote size={20} />
-        </button>
+        <ToolbarTooltip label="Audio">
+          <button
+            type="button"
+            aria-label="Add Audio Track"
+            onClick={() => {
+              setShowPenOptions(false);
+              onOpenUploadModal('audio');
+            }}
+            className="flex items-center justify-center w-10 h-10 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+          >
+            <MusicNote size={20} />
+          </button>
+        </ToolbarTooltip>
 
         <div className="h-6 w-[1px] bg-white/15 mx-1" />
 
         {/* Cloudinary Storage Config */}
-        <button
-          type="button"
-          title="Cloudinary Storage Settings"
-          onClick={onOpenCloudinaryModal}
-          className="flex items-center justify-center w-10 h-10 rounded-xl text-blue-400 hover:text-white hover:bg-blue-600/20 transition-all cursor-pointer"
-        >
-          <CloudUpload size={20} />
-        </button>
+        <ToolbarTooltip label="Cloudinary">
+          <button
+            type="button"
+            aria-label="Cloudinary Storage Settings"
+            onClick={onOpenCloudinaryModal}
+            className="flex items-center justify-center w-10 h-10 rounded-xl text-blue-400 hover:text-white hover:bg-blue-600/20 transition-all cursor-pointer"
+          >
+            <CloudUpload size={20} />
+          </button>
+        </ToolbarTooltip>
 
         {/* JSON Inspector & Export */}
-        <button
-          type="button"
-          title="View & Export Canvas JSON"
-          onClick={onOpenJsonModal}
-          className="flex items-center justify-center w-10 h-10 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
-        >
-          <Download size={20} />
-        </button>
+        <ToolbarTooltip label="Inspect JSON">
+          <button
+            type="button"
+            aria-label="View & Export Canvas JSON"
+            onClick={onOpenJsonModal}
+            className="flex items-center justify-center w-10 h-10 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+          >
+            <Download size={20} />
+          </button>
+        </ToolbarTooltip>
 
         <div className="h-6 w-[1px] bg-white/15 mx-1" />
 
-        {/* Zoom Controls */}
+        {/* Zoom Controls (Zoom Out & Zoom In have NO tooltip as requested) */}
         <button
           type="button"
-          title="Zoom Out"
+          aria-label="Zoom Out"
           onClick={onZoomOut}
           className="flex items-center justify-center w-8 h-8 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
         >
           <ZoomOut size={16} />
         </button>
 
-        <button
-          type="button"
-          title="Reset Zoom (100%)"
-          onClick={onResetZoom}
-          className="px-2 py-1 text-[11px] font-mono text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-all cursor-pointer min-w-[42px] text-center"
-        >
-          {Math.round(zoom * 100)}%
-        </button>
+        <ToolbarTooltip label="Reset View (100%)">
+          <button
+            type="button"
+            aria-label="Reset Zoom (100%)"
+            onClick={onResetZoom}
+            className="px-2 py-1 text-[11px] font-mono text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-all cursor-pointer min-w-[42px] text-center"
+          >
+            {Math.round(zoom * 100)}%
+          </button>
+        </ToolbarTooltip>
 
         <button
           type="button"
-          title="Zoom In"
+          aria-label="Zoom In"
           onClick={onZoomIn}
           className="flex items-center justify-center w-8 h-8 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
         >
