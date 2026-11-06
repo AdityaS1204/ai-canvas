@@ -24,7 +24,7 @@ import ImageItem from './ImageItem';
 import VideoItem from './VideoItem';
 import AudioItem from './AudioItem';
 import DrawingCanvas from './DrawingCanvas';
-import SettingsDropdown from './SettingsDropdown';
+import CanvasFrame from './CanvasFrame';
 import FloatingToolbar from '../toolbar/FloatingToolbar';
 import MediaUploadModal from '../modals/MediaUploadModal';
 import CloudinaryConfigModal from '../modals/CloudinaryConfigModal';
@@ -45,6 +45,7 @@ export default function InfiniteCanvas() {
   const [activeTool, setActiveTool] = useState<ActiveTool>('select');
   const [penColor, setPenColor] = useState<string>('#2563eb');
   const [penWidth, setPenWidth] = useState<number>(4);
+  const [showGrid, setShowGrid] = useState(true);
 
   // Modals state
   const [uploadModalType, setUploadModalType] = useState<'image' | 'video' | 'audio' | null>(null);
@@ -370,160 +371,160 @@ export default function InfiniteCanvas() {
   }, [selectedItemId, handleRemoveItem]);
 
   return (
-    <div
-      ref={containerRef}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      /* Removed double-click text box opening as requested */
-      className={`relative w-screen h-screen overflow-hidden select-none bg-zinc-900 ${
-        activeTool === 'pen'
-          ? 'cursor-crosshair'
-          : isPanning.current
-          ? 'cursor-grabbing'
-          : 'cursor-default'
-      }`}
-    >
-      {/* Infinite Canvas Dots Grid */}
-      <div
-        className="absolute inset-0 pointer-events-none canvas-grid-dots"
-        style={{
-          backgroundPosition: `${pan.x}px ${pan.y}px`,
-          backgroundSize: `${30 * zoom}px ${30 * zoom}px`,
-          opacity: Math.min(Math.max(zoom * 0.9, 0.35), 0.8),
-        }}
-      />
-
-      {/* Top Header (purely blue, white, black) */}
-      <header className="fixed top-4 left-4 right-4 z-40 flex items-center justify-between pointer-events-none">    
-        {/* Top Right Morphing Settings Dropdown */}
-        <div className="pointer-events-auto">
-          <SettingsDropdown
-            isCloudinaryConfigured={Boolean(cloudinaryConfig.uploadPreset)}
-            onOpenCloudinaryModal={() => setIsCloudinaryModalOpen(true)}
+    <CanvasFrame
+      isCloudinaryConfigured={Boolean(cloudinaryConfig.uploadPreset)}
+      onOpenCloudinaryModal={() => setIsCloudinaryModalOpen(true)}
+      onOpenJsonModal={() => setIsJsonModalOpen(true)}
+      onResetZoom={handleResetZoom}
+      onToggleGrid={() => setShowGrid((prev) => !prev)}
+      onClearCanvas={() => {
+        if (window.confirm('Clear all items and drawings from the canvas?')) {
+          setItems([]);
+          setStrokes([]);
+          showToast('Canvas cleared');
+        }
+      }}
+      overlays={
+        <>
+          {/* Floating Toolbar at Center Bottom (resting seamlessly inside the frame shelf) */}
+          <FloatingToolbar
+            activeTool={activeTool}
+            setActiveTool={setActiveTool}
+            penColor={penColor}
+            setPenColor={setPenColor}
+            penWidth={penWidth}
+            setPenWidth={setPenWidth}
+            zoom={zoom}
+            onZoomIn={handleZoomIn}
+            onZoomOut={handleZoomOut}
+            onResetZoom={handleResetZoom}
+            onAddTextBox={handleAddTextBoxFromToolbar}
+            onOpenUploadModal={(type) => setUploadModalType(type)}
             onOpenJsonModal={() => setIsJsonModalOpen(true)}
-            onClearCanvas={() => {
-              if (window.confirm('Clear all items and drawings from the canvas?')) {
-                setItems([]);
-                setStrokes([]);
-                showToast('Canvas cleared');
-              }
+            onOpenCloudinaryModal={() => setIsCloudinaryModalOpen(true)}
+            onClearCanvas={() => setItems([])}
+          />
+
+          {/* Media Upload Modal */}
+          {uploadModalType && (
+            <MediaUploadModal
+              isOpen={Boolean(uploadModalType)}
+              mediaType={uploadModalType}
+              onClose={() => setUploadModalType(null)}
+              onAddMedia={handleAddMedia}
+              onOpenCloudinaryConfig={() => setIsCloudinaryModalOpen(true)}
+            />
+          )}
+
+          {/* Cloudinary Storage Settings Modal */}
+          <CloudinaryConfigModal
+            isOpen={isCloudinaryModalOpen}
+            onClose={() => setIsCloudinaryModalOpen(false)}
+            onSaved={(cfg) => {
+              setCloudinaryConfig(cfg);
+              showToast('Cloudinary settings saved');
             }}
           />
-        </div>
-      </header>
 
-      {/* World Canvas Content Layer */}
+          {/* JSON Inspector & Import/Export Modal */}
+          <JsonViewerModal
+            isOpen={isJsonModalOpen}
+            onClose={() => setIsJsonModalOpen(false)}
+            items={items}
+            strokes={strokes}
+            viewport={{ x: pan.x, y: pan.y, scale: zoom }}
+            onImportState={(newState) => {
+              setItems(newState.items);
+              setStrokes(newState.strokes || []);
+              if (newState.viewport) {
+                setPan({ x: newState.viewport.x, y: newState.viewport.y });
+                setZoom(newState.viewport.scale || 1);
+              }
+              showToast('Canvas JSON loaded');
+            }}
+          />
+
+          {/* Toast Notification */}
+          {toastMessage && (
+            <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-2xl bg-[#231b1b] border border-[#524141] text-white text-xs font-medium shadow-2xl backdrop-blur-md animate-in fade-in slide-in-from-top-2 duration-150">
+              {toastMessage}
+            </div>
+          )}
+        </>
+      }
+    >
       <div
-        className="absolute inset-0 origin-top-left pointer-events-none"
-        style={{
-          transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`,
-          transformOrigin: '0 0',
-        }}
+        ref={containerRef}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        className={`relative w-full h-full overflow-hidden select-none bg-[#221b1b] ${
+          activeTool === 'pen'
+            ? 'cursor-crosshair'
+            : isPanning.current
+            ? 'cursor-grabbing'
+            : 'cursor-default'
+        }`}
       >
-        {/* Render Canvas Items */}
-        {items.map((item) => {
-          const isSelected = selectedItemId === item.id;
-          const commonProps = {
-            item,
-            zoom,
-            isSelected,
-            onSelect: handleSelectItem,
-            onUpdate: handleUpdateItem,
-            onRemove: handleRemoveItem,
-          };
+        {/* Infinite Canvas Dots Grid */}
+        {showGrid && (
+          <div
+            className="absolute inset-0 pointer-events-none canvas-grid-dots"
+            style={{
+              backgroundPosition: `${pan.x}px ${pan.y}px`,
+              backgroundSize: `${30 * zoom}px ${30 * zoom}px`,
+              opacity: Math.min(Math.max(zoom * 0.9, 0.25), 0.6),
+            }}
+          />
+        )}
 
-          if (item.type === 'text') {
-            return <TextBoxItem key={item.id} {...commonProps} />;
-          }
-          if (item.type === 'video') {
-            return <VideoItem key={item.id} {...commonProps} />;
-          }
-          if (item.type === 'image') {
-            return <ImageItem key={item.id} {...commonProps} />;
-          }
-          if (item.type === 'audio') {
-            return <AudioItem key={item.id} {...commonProps} />;
-          }
-          return null;
-        })}
-      </div>
+        {/* World Canvas Content Layer */}
+        <div
+          className="absolute inset-0 origin-top-left pointer-events-none"
+          style={{
+            transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`,
+            transformOrigin: '0 0',
+          }}
+        >
+          {/* Render Canvas Items */}
+          {items.map((item) => {
+            const isSelected = selectedItemId === item.id;
+            const commonProps = {
+              item,
+              zoom,
+              isSelected,
+              onSelect: handleSelectItem,
+              onUpdate: handleUpdateItem,
+              onRemove: handleRemoveItem,
+            };
 
-      {/* Drawing Canvas Overlay */}
-      <DrawingCanvas
-        strokes={strokes}
-        onAddStroke={(s) => setStrokes((prev) => [...prev, s])}
-        isPenActive={activeTool === 'pen'}
-        penColor={penColor}
-        penWidth={penWidth}
-        zoom={zoom}
-        pan={pan}
-      />
-
-      {/* Floating Toolbar at Center Bottom (Pen, Text, Image, Media, Controls) with Margin at Bottom */}
-      <FloatingToolbar
-        activeTool={activeTool}
-        setActiveTool={setActiveTool}
-        penColor={penColor}
-        setPenColor={setPenColor}
-        penWidth={penWidth}
-        setPenWidth={setPenWidth}
-        zoom={zoom}
-        onZoomIn={handleZoomIn}
-        onZoomOut={handleZoomOut}
-        onResetZoom={handleResetZoom}
-        onAddTextBox={handleAddTextBoxFromToolbar}
-        onOpenUploadModal={(type) => setUploadModalType(type)}
-        onOpenJsonModal={() => setIsJsonModalOpen(true)}
-        onOpenCloudinaryModal={() => setIsCloudinaryModalOpen(true)}
-        onClearCanvas={() => setItems([])}
-      />
-
-      {/* Media Upload Modal */}
-      {uploadModalType && (
-        <MediaUploadModal
-          isOpen={Boolean(uploadModalType)}
-          mediaType={uploadModalType}
-          onClose={() => setUploadModalType(null)}
-          onAddMedia={handleAddMedia}
-          onOpenCloudinaryConfig={() => setIsCloudinaryModalOpen(true)}
-        />
-      )}
-
-      {/* Cloudinary Storage Settings Modal */}
-      <CloudinaryConfigModal
-        isOpen={isCloudinaryModalOpen}
-        onClose={() => setIsCloudinaryModalOpen(false)}
-        onSaved={(cfg) => {
-          setCloudinaryConfig(cfg);
-          showToast('Cloudinary settings saved');
-        }}
-      />
-
-      {/* JSON Inspector & Import/Export Modal */}
-      <JsonViewerModal
-        isOpen={isJsonModalOpen}
-        onClose={() => setIsJsonModalOpen(false)}
-        items={items}
-        strokes={strokes}
-        viewport={{ x: pan.x, y: pan.y, scale: zoom }}
-        onImportState={(newState) => {
-          setItems(newState.items);
-          setStrokes(newState.strokes || []);
-          if (newState.viewport) {
-            setPan({ x: newState.viewport.x, y: newState.viewport.y });
-            setZoom(newState.viewport.scale || 1);
-          }
-          showToast('Canvas JSON loaded');
-        }}
-      />
-
-      {/* Toast Notification (pure blue, white, black) */}
-      {toastMessage && (
-        <div className="fixed top-18 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-2xl bg-black border border-white/20 text-white text-xs font-medium shadow-2xl backdrop-blur-md animate-in fade-in slide-in-from-top-2 duration-150">
-          {toastMessage}
+            if (item.type === 'text') {
+              return <TextBoxItem key={item.id} {...commonProps} />;
+            }
+            if (item.type === 'video') {
+              return <VideoItem key={item.id} {...commonProps} />;
+            }
+            if (item.type === 'image') {
+              return <ImageItem key={item.id} {...commonProps} />;
+            }
+            if (item.type === 'audio') {
+              return <AudioItem key={item.id} {...commonProps} />;
+            }
+            return null;
+          })}
         </div>
-      )}
-    </div>
+
+        {/* Drawing Canvas Overlay */}
+        <DrawingCanvas
+          strokes={strokes}
+          onAddStroke={(s) => setStrokes((prev) => [...prev, s])}
+          isPenActive={activeTool === 'pen'}
+          penColor={penColor}
+          penWidth={penWidth}
+          zoom={zoom}
+          pan={pan}
+        />
+      </div>
+    </CanvasFrame>
   );
 }
