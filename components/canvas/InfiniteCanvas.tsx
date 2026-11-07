@@ -33,7 +33,6 @@ import MediaUploadModal from '../modals/MediaUploadModal';
 import CloudinaryConfigModal from '../modals/CloudinaryConfigModal';
 import JsonViewerModal from '../modals/JsonViewerModal';
 import ClearCanvasModal from '../modals/ClearCanvasModal';
-import ShapeRotationModal from '../modals/ShapeRotationModal';
 
 
 export default function InfiniteCanvas() {
@@ -58,10 +57,9 @@ export default function InfiniteCanvas() {
     currentX: number;
     currentY: number;
   } | null>(null);
-  const lastPointerDownTimeRef = useRef<number>(0);
-  const lastPointerDownPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
-  const lastPointerUpTimeRef = useRef<number>(0);
-  const lastPointerUpPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const lastClickTimeRef = useRef<number>(0);
+  const lastClickPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const isPotentialPan = useRef(false);
   const dragItemStartPositions = useRef<Record<string, { x: number; y: number }>>({});
 
   // Active Tool & Pen/Shape color state
@@ -98,7 +96,6 @@ export default function InfiniteCanvas() {
   const [isCloudinaryModalOpen, setIsCloudinaryModalOpen] = useState(false);
   const [isJsonModalOpen, setIsJsonModalOpen] = useState(false);
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
-  const [rotatingShapeId, setRotatingShapeId] = useState<string | null>(null);
   const [cloudinaryConfig, setCloudinaryConfig] = useState<CloudinaryConfig>(getStoredCloudinaryConfig());
 
   // Toast feedback
@@ -510,38 +507,29 @@ export default function InfiniteCanvas() {
       return;
     }
 
-    // Select tool active -> Double click & drag activates marquee selection; single click pans
+    // Select tool active -> Double click & drag activates marquee selection; single click drag pans
     if (activeTool === 'select' && isLeftButton) {
       const clickedOnCard = (e.target as HTMLElement).closest('.group');
       if (!clickedOnCard) {
         const now = Date.now();
-        const timeSinceDown = now - lastPointerDownTimeRef.current;
-        const timeSinceUp = now - lastPointerUpTimeRef.current;
-        const distDown = Math.hypot(
-          e.clientX - lastPointerDownPosRef.current.x,
-          e.clientY - lastPointerDownPosRef.current.y
-        );
-        const distUp = Math.hypot(
-          e.clientX - lastPointerUpPosRef.current.x,
-          e.clientY - lastPointerUpPosRef.current.y
+        const timeSinceLastClick = now - lastClickTimeRef.current;
+        const distFromLastClick = Math.hypot(
+          e.clientX - lastClickPosRef.current.x,
+          e.clientY - lastClickPosRef.current.y
         );
 
         // Double click detected!
-        // 1. Native e.detail >= 2
-        // 2. Click down within 650ms and 60px of previous down
-        // 3. Click down within 650ms and 60px of previous up
-        // 4. Or Shift key held for immediate box selection
+        // User clicked and released, then pressed down again within 650ms and 60px
+        // OR user holds Shift key for immediate box selection
         const isDoubleClick =
-          e.detail >= 2 ||
-          (timeSinceDown < 650 && distDown < 60) ||
-          (timeSinceUp < 650 && distUp < 60) ||
+          (timeSinceLastClick > 30 && timeSinceLastClick < 650 && distFromLastClick < 60) ||
           e.shiftKey;
 
         if (isDoubleClick) {
           isMarqueeSelecting.current = true;
           isPanning.current = false;
-          lastPointerDownTimeRef.current = 0;
-          lastPointerUpTimeRef.current = 0;
+          isPotentialPan.current = false;
+          lastClickTimeRef.current = 0; // consumed
 
           try {
             e.currentTarget.setPointerCapture(e.pointerId);
@@ -561,17 +549,16 @@ export default function InfiniteCanvas() {
           return;
         }
 
-        // Single click: prepare for canvas pan and record for double-click detection
-        lastPointerDownTimeRef.current = now;
-        lastPointerDownPosRef.current = { x: e.clientX, y: e.clientY };
-        isPanning.current = true;
+        // First click (or regular click): don't pan until mouse actually moves past 4px threshold!
+        isMarqueeSelecting.current = false;
+        isPanning.current = false;
+        isPotentialPan.current = true;
         panStart.current = {
           clientX: e.clientX,
           clientY: e.clientY,
           startPanX: pan.x,
           startPanY: pan.y,
         };
-        setSelectedItemIds([]);
       }
     }
   };
@@ -614,14 +601,21 @@ export default function InfiniteCanvas() {
       return;
     }
 
-    // 1. Panning canvas
-    if (isPanning.current) {
+    // 1. Panning canvas (only after moving past 4px threshold so stationary clicks don't jiggle the canvas)
+    if (isPanning.current || isPotentialPan.current) {
       const dx = e.clientX - panStart.current.clientX;
       const dy = e.clientY - panStart.current.clientY;
-      setPan({
-        x: panStart.current.startPanX + dx,
-        y: panStart.current.startPanY + dy,
-      });
+      const dist = Math.hypot(dx, dy);
+
+      if (isPanning.current || dist > 4) {
+        isPanning.current = true;
+        // User dragged to pan -> cancel double click candidate
+        lastClickTimeRef.current = 0;
+        setPan({
+          x: panStart.current.startPanX + dx,
+          y: panStart.current.startPanY + dy,
+        });
+      }
       return;
     }
 
@@ -667,18 +661,20 @@ export default function InfiniteCanvas() {
     if (isMarqueeSelecting.current) {
       isMarqueeSelecting.current = false;
       setMarqueeBox(null);
+      // Keep selected items!
+    } else if (isPotentialPan.current && !isPanning.current) {
+      // Clean stationary click on empty canvas (user did NOT drag)!
+      // Record for double click detection
+      lastClickTimeRef.current = Date.now();
+      lastClickPosRef.current = { x: e.clientX, y: e.clientY };
+      // Clicking empty canvas deselects
+      setSelectedItemIds([]);
+    } else {
+      // User dragged/panned canvas, invalidate double click
+      lastClickTimeRef.current = 0;
     }
 
-    // Record pointer up for double-click detection if not a long pan
-    const panDist = Math.hypot(
-      e.clientX - panStart.current.clientX,
-      e.clientY - panStart.current.clientY
-    );
-    if (!isDrawing.current && (!isPanning.current || panDist < 25)) {
-      lastPointerUpTimeRef.current = Date.now();
-      lastPointerUpPosRef.current = { x: e.clientX, y: e.clientY };
-    }
-
+    isPotentialPan.current = false;
     isPanning.current = false;
     isErasing.current = false;
 
@@ -697,6 +693,7 @@ export default function InfiniteCanvas() {
   // Safety listener: if pointer is released anywhere outside canvas
   useEffect(() => {
     const handleGlobalPointerUp = () => {
+      isPotentialPan.current = false;
       isPanning.current = false;
       isErasing.current = false;
       if (isMarqueeSelecting.current) {
@@ -880,15 +877,6 @@ export default function InfiniteCanvas() {
             }}
           />
 
-          {/* Separate Shape Rotation & 3D Axes Modal */}
-          <ShapeRotationModal
-            isOpen={Boolean(rotatingShapeId)}
-            onClose={() => setRotatingShapeId(null)}
-            item={items.find((i) => i.id === rotatingShapeId) || null}
-            onUpdate={handleUpdateItem}
-            theme={theme}
-          />
-
           {/* Toast Notification */}
           {toastMessage && (
             <div
@@ -996,13 +984,7 @@ export default function InfiniteCanvas() {
             };
 
             if (item.type === 'shape') {
-              return (
-                <ShapeItem
-                  key={item.id}
-                  {...commonProps}
-                  onOpenRotateModal={(id) => setRotatingShapeId(id)}
-                />
-              );
+              return <ShapeItem key={item.id} {...commonProps} />;
             }
             if (item.type === 'text') {
               return <TextBoxItem key={item.id} {...commonProps} />;

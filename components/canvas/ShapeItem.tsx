@@ -2,7 +2,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { CanvasItem } from '@/types/canvas';
-import { COLOR_PRESETS } from '../toolbar/FloatingToolbar';
 
 interface ShapeItemProps {
   item: CanvasItem;
@@ -15,7 +14,6 @@ interface ShapeItemProps {
   onDragStart?: (id: string) => void;
   onDragMove?: (id: string, deltaX: number, deltaY: number) => void;
   onRemove: (id: string) => void;
-  onOpenRotateModal?: (id: string) => void;
 }
 
 type ResizeCorner = 'nw' | 'ne' | 'se' | 'sw';
@@ -32,7 +30,6 @@ export default function ShapeItem({
   onDragStart,
   onDragMove,
   onRemove,
-  onOpenRotateModal,
 }: ShapeItemProps) {
   const isLight = theme === 'light';
   const shapeKind = item.shapeKind || 'rectangle';
@@ -50,14 +47,6 @@ export default function ShapeItem({
   const [isDragging, setIsDragging] = useState(false);
   const [resizingCorner, setResizingCorner] = useState<ResizeCorner | null>(null);
   const [rotatingAxis, setRotatingAxis] = useState<RotateAxis | null>(null);
-  const [showColorMenu, setShowColorMenu] = useState(false);
-
-  // Close color popover if selection is lost
-  useEffect(() => {
-    if (!isSelected) {
-      setShowColorMenu(false);
-    }
-  }, [isSelected]);
 
   const dragStartRef = useRef<{ startX: number; startY: number; mouseX: number; mouseY: number }>({
     startX: 0,
@@ -257,7 +246,7 @@ export default function ShapeItem({
       onMouseDown={handleDragStart}
       onClick={(e) => {
         e.stopPropagation();
-        onSelect(item.id);
+        onSelect(item.id, e);
       }}
       style={{
         position: 'absolute',
@@ -357,10 +346,10 @@ export default function ShapeItem({
 
       {/* Live Rotation Degree Readout when rotating via on-canvas handles */}
       {rotatingAxis && (
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 px-2.5 py-1 rounded-md bg-black/85 text-white text-[11px] font-mono shadow-2xl pointer-events-none z-50 whitespace-nowrap border border-white/20 backdrop-blur-md">
-          {rotatingAxis === 'z' && `Rotation: ${rotationZ}°`}
-          {rotatingAxis === 'x' && `Rotate X: ${rotateX}°`}
-          {rotatingAxis === 'y' && `Rotate Y: ${rotateY}°`}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 px-2.5 py-1 rounded-md bg-black/85 text-white text-xs font-mono font-semibold shadow-2xl pointer-events-none z-50 whitespace-nowrap border border-white/20 backdrop-blur-md">
+          {rotatingAxis === 'z' && `${rotationZ}°`}
+          {rotatingAxis === 'x' && `${rotateX}°`}
+          {rotatingAxis === 'y' && `${rotateY}°`}
         </div>
       )}
 
@@ -378,135 +367,46 @@ export default function ShapeItem({
                 : 'bg-[#231b1b]/95 border border-[#524141] text-white shadow-black/80'
             }`}
           >
-            <span className="capitalize opacity-75">{shapeKind}</span>
-
-            {/* Shape Stroke Color Picker & Presets Menu */}
-            <div className="relative flex items-center">
-              <label
-                title={`Change color (Current: ${strokeColor})`}
-                onClick={(e) => e.stopPropagation()}
-                className={`flex items-center gap-1 px-1.5 py-0.5 rounded cursor-pointer transition-colors relative ${
-                  isLight ? 'hover:bg-black/5 text-[#5a4848]' : 'hover:bg-white/10 text-white/80'
-                }`}
-              >
-                <span
-                  style={{ backgroundColor: strokeColor }}
-                  className="w-3.5 h-3.5 rounded-full border border-black/30 dark:border-white/40 shadow-xs"
-                />
-                <span className="font-mono text-[9px] uppercase font-bold">{strokeColor}</span>
-                <input
-                  type="color"
-                  value={strokeColor.startsWith('#') ? strokeColor : '#2563eb'}
-                  onChange={(e) => {
-                    e.stopPropagation();
-                    onUpdate(item.id, { strokeColor: e.target.value });
-                  }}
-                  className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
-                />
-              </label>
-
-              {/* Quick Preset Swatches Trigger */}
+            {/* Reset Rotation Button */}
+            {rotationZ !== 0 || rotateX !== 0 || rotateY !== 0 ? (
               <button
                 type="button"
-                title="Color presets & stroke options"
+                title={`Reset rotation to 0° (Current: 2D:${rotationZ}° X:${rotateX}° Y:${rotateY}°)`}
                 onClick={(e) => {
                   e.stopPropagation();
-                  setShowColorMenu((prev) => !prev);
+                  onUpdate(item.id, { rotation: 0, rotateX: 0, rotateY: 0 });
                 }}
-                className={`p-0.5 rounded cursor-pointer transition-colors ${
-                  showColorMenu
-                    ? 'bg-blue-600 text-white'
-                    : isLight
-                    ? 'hover:bg-black/5 text-[#5a4848]'
-                    : 'hover:bg-white/10 text-white/80'
+                className={`flex items-center gap-1 px-1.5 py-0.5 rounded cursor-pointer transition-colors ${
+                  isLight
+                    ? 'bg-blue-50 hover:bg-blue-100 text-blue-700 font-medium'
+                    : 'bg-blue-950/60 hover:bg-blue-900/60 text-blue-300 font-medium'
                 }`}
               >
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M12 2a10 10 0 0 1 10 10" />
+                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                  <path d="M3 3v5h5" />
                 </svg>
+                <span>Reset 0°</span>
               </button>
-
-              {/* Color Presets & Width Popover */}
-              {showColorMenu && (
-                <div
-                  onClick={(e) => e.stopPropagation()}
-                  className={`absolute bottom-full mb-2 right-0 flex flex-col gap-2 p-2.5 rounded-xl border shadow-2xl backdrop-blur-2xl z-50 text-xs w-48 animate-in fade-in slide-in-from-bottom-2 duration-150 select-none ${
-                    isLight
-                      ? 'bg-white/95 border-[#d8cfcf] text-[#2d2424] shadow-black/15'
-                      : 'bg-[#231b1b]/95 border-[#524141] text-white shadow-black/90'
-                  }`}
-                >
-                  <div className="flex items-center justify-between text-[10px] font-semibold opacity-75">
-                    <span>Shape Color</span>
-                    <span className="font-mono text-blue-500 uppercase">{strokeColor}</span>
-                  </div>
-
-                  {/* Preset Swatches */}
-                  <div className="flex items-center justify-between gap-1">
-                    {COLOR_PRESETS.map((c) => (
-                      <button
-                        key={c}
-                        type="button"
-                        title={c}
-                        onClick={() => onUpdate(item.id, { strokeColor: c })}
-                        style={{ backgroundColor: c }}
-                        className={`w-4 h-4 rounded-full transition-transform cursor-pointer border border-black/20 dark:border-white/30 ${
-                          strokeColor.toLowerCase() === c.toLowerCase()
-                            ? 'ring-2 ring-blue-500 scale-125 shadow-sm'
-                            : 'hover:scale-110 opacity-80'
-                        }`}
-                      />
-                    ))}
-                  </div>
-
-                  {/* Stroke Width Selector */}
-                  <div className="flex items-center justify-between gap-1 pt-1.5 border-t border-black/5 dark:border-white/10 text-[10px]">
-                    <span className="opacity-70">Thickness:</span>
-                    <div className="flex items-center gap-1">
-                      {[1, 2, 3, 5, 8].map((w) => (
-                        <button
-                          key={w}
-                          type="button"
-                          onClick={() => onUpdate(item.id, { strokeWidth: w })}
-                          className={`px-1.5 py-0.5 rounded cursor-pointer transition-colors ${
-                            sw === w
-                              ? 'bg-blue-600 text-white font-bold'
-                              : isLight
-                              ? 'bg-black/5 hover:bg-black/10'
-                              : 'bg-white/10 hover:bg-white/20'
-                          }`}
-                        >
-                          {w}px
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Rotate Popover Toggle / Separate Modal Trigger */}
-            <button
-              type="button"
-              aria-label="Rotate controls"
-              onClick={(e) => {
-                e.stopPropagation();
-                onOpenRotateModal?.(item.id);
-              }}
-              className={`rotate-btn-trigger flex items-center gap-1 px-1.5 py-0.5 rounded cursor-pointer transition-colors ${
-                rotationZ !== 0 || rotateX !== 0 || rotateY !== 0
-                  ? 'bg-blue-600 text-white'
-                  : isLight
-                  ? 'hover:bg-black/5 text-[#5a4848]'
-                  : 'hover:bg-white/10 text-white/80'
-              }`}
-            >
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
-              </svg>
-              <span>{rotationZ || rotateX || rotateY ? `${rotationZ}°` : 'Rotate'}</span>
-            </button>
+            ) : (
+              <button
+                type="button"
+                title="Shape is at 0°"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onUpdate(item.id, { rotation: 0, rotateX: 0, rotateY: 0 });
+                }}
+                className={`flex items-center gap-1 px-1.5 py-0.5 rounded transition-colors opacity-50 cursor-pointer ${
+                  isLight ? 'hover:bg-black/5 text-[#5a4848]' : 'hover:bg-white/10 text-white/70'
+                }`}
+              >
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                  <path d="M3 3v5h5" />
+                </svg>
+                <span>Reset</span>
+              </button>
+            )}
 
             {/* Delete shape button */}
             <button
@@ -531,10 +431,10 @@ export default function ShapeItem({
           {/* 2. 2D Rotation Handle (Z-axis) */}
           <div
             onMouseDown={(e) => handleRotateStart(e, 'z')}
-            title="Rotate Shape (Z-axis / 2D). Drag around center. Hold Shift to snap 15°"
-            className="absolute left-1/2 -top-8 -translate-x-1/2 w-5 h-5 bg-white border-2 border-blue-600 rounded-full shadow-md flex items-center justify-center cursor-grab active:cursor-grabbing hover:scale-125 transition-transform pointer-events-auto"
+            title="Rotate Shape (2D In-plane). Drag around center. Hold Shift to snap 15°"
+            className="absolute left-1/2 -top-8 -translate-x-1/2 w-6 h-6 bg-white border-2 border-blue-600 rounded-full shadow-md flex items-center justify-center cursor-grab active:cursor-grabbing hover:scale-115 active:scale-95 transition-transform pointer-events-auto"
           >
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
             </svg>
           </div>
@@ -542,19 +442,19 @@ export default function ShapeItem({
           {/* 3. Rotate X Handle (bottom-center) */}
           <div
             onMouseDown={(e) => handleRotateStart(e, 'x')}
-            title="Rotate around X-Axis (Pitch / Vertical). Drag up/down. Hold Shift to snap 15°"
-            className="absolute left-1/2 -bottom-2.5 -translate-x-1/2 px-1.5 py-0.5 bg-blue-600 text-white text-[8px] font-mono font-bold rounded-full shadow-md flex items-center gap-0.5 cursor-ns-resize hover:scale-115 transition-transform pointer-events-auto select-none"
+            title="Rotate X-Axis (Pitch / 3D Vertical Tilt). Drag up/down. Hold Shift to snap 15°"
+            className="absolute left-1/2 -bottom-3 -translate-x-1/2 px-2 py-0.5 bg-blue-600 hover:bg-blue-500 text-white text-[9px] font-mono font-bold rounded-full shadow-md flex items-center gap-1 cursor-ns-resize hover:scale-110 active:scale-95 transition-transform pointer-events-auto select-none border border-white/30"
           >
-            <span>↕ X</span>
+            <span>↕ Rotate X</span>
           </div>
 
           {/* 4. Rotate Y Handle (right-center) */}
           <div
             onMouseDown={(e) => handleRotateStart(e, 'y')}
-            title="Rotate around Y-Axis (Yaw / Horizontal). Drag left/right. Hold Shift to snap 15°"
-            className="absolute -right-3 top-1/2 -translate-y-1/2 px-1.5 py-0.5 bg-blue-600 text-white text-[8px] font-mono font-bold rounded-full shadow-md flex items-center gap-0.5 cursor-ew-resize hover:scale-115 transition-transform pointer-events-auto select-none"
+            title="Rotate Y-Axis (Yaw / 3D Horizontal Flip). Drag left/right. Hold Shift to snap 15°"
+            className="absolute -right-3 top-1/2 -translate-y-1/2 px-2 py-0.5 bg-blue-600 hover:bg-blue-500 text-white text-[9px] font-mono font-bold rounded-full shadow-md flex items-center gap-1 cursor-ew-resize hover:scale-110 active:scale-95 transition-transform pointer-events-auto select-none border border-white/30"
           >
-            <span>↔ Y</span>
+            <span>↔ Rotate Y</span>
           </div>
 
           {/* 5. 4 Corner Resize Handles */}

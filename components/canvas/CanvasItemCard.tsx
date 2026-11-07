@@ -156,7 +156,7 @@ export default function CanvasItemCard({
       onMouseDown={handleDragStart}
       onClick={(e) => {
         e.stopPropagation();
-        onSelect(item.id);
+        onSelect(item.id, e);
       }}
       style={{
         position: 'absolute',
