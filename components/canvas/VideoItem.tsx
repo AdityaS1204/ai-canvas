@@ -11,8 +11,10 @@ interface VideoItemProps {
   item: CanvasItem;
   zoom: number;
   isSelected: boolean;
-  onSelect: (id: string) => void;
+  onSelect: (id: string, e?: React.MouseEvent) => void;
   onUpdate: (id: string, updates: Partial<CanvasItem>) => void;
+  onDragStart?: (id: string) => void;
+  onDragMove?: (id: string, deltaX: number, deltaY: number) => void;
   onRemove: (id: string) => void;
 }
 
@@ -24,6 +26,8 @@ export default function VideoItem({
   isSelected,
   onSelect,
   onUpdate,
+  onDragStart,
+  onDragMove,
   onRemove,
 }: VideoItemProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -40,6 +44,8 @@ export default function VideoItem({
       isSelected={isSelected}
       onSelect={onSelect}
       onUpdate={onUpdate}
+      onDragStart={onDragStart}
+      onDragMove={onDragMove}
       onRemove={onRemove}
     >
       <div className="relative w-full h-full flex flex-col items-center justify-center bg-black rounded-xl overflow-hidden group/vid">

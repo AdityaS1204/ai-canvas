@@ -10,8 +10,10 @@ interface CanvasItemCardProps {
   item: CanvasItem;
   zoom: number;
   isSelected: boolean;
-  onSelect: (id: string) => void;
+  onSelect: (id: string, e?: React.MouseEvent) => void;
   onUpdate: (id: string, updates: Partial<CanvasItem>) => void;
+  onDragStart?: (id: string) => void;
+  onDragMove?: (id: string, deltaX: number, deltaY: number) => void;
   onRemove: (id: string) => void;
   children: React.ReactNode;
 }
@@ -24,6 +26,8 @@ export default function CanvasItemCard({
   isSelected,
   onSelect,
   onUpdate,
+  onDragStart,
+  onDragMove,
   onRemove,
   children,
 }: CanvasItemCardProps) {
@@ -74,7 +78,8 @@ export default function CanvasItemCard({
     e.preventDefault();
     e.stopPropagation();
 
-    onSelect(item.id);
+    onSelect(item.id, e);
+    onDragStart?.(item.id);
     setIsDragging(true);
 
     dragStartRef.current = {
@@ -108,10 +113,14 @@ export default function CanvasItemCard({
       if (isDragging) {
         const deltaX = (e.clientX - dragStartRef.current.mouseX) / zoom;
         const deltaY = (e.clientY - dragStartRef.current.mouseY) / zoom;
-        onUpdate(item.id, {
-          x: Math.round(dragStartRef.current.startX + deltaX),
-          y: Math.round(dragStartRef.current.startY + deltaY),
-        });
+        if (onDragMove) {
+          onDragMove(item.id, deltaX, deltaY);
+        } else {
+          onUpdate(item.id, {
+            x: Math.round(dragStartRef.current.startX + deltaX),
+            y: Math.round(dragStartRef.current.startY + deltaY),
+          });
+        }
       } else if (isResizing) {
         const deltaX = (e.clientX - resizeStartRef.current.mouseX) / zoom;
         const deltaY = (e.clientY - resizeStartRef.current.mouseY) / zoom;
@@ -139,7 +148,7 @@ export default function CanvasItemCard({
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging, isResizing, item.id, onUpdate, zoom]);
+  }, [isDragging, isResizing, item.id, onUpdate, onDragMove, zoom]);
 
   return (
     <div

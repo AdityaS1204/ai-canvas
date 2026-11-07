@@ -35,6 +35,10 @@ export interface CanvasItem {
   strokeColor?: string;
   fillColor?: string;
   strokeWidth?: number;
+  // Rotation / 3D Transform
+  rotation?: number; // 2D rotation (Z-axis angle in degrees)
+  rotateX?: number;  // Rotation around X-axis (degrees)
+  rotateY?: number;  // Rotation around Y-axis (degrees)
   createdAt: number;
 }
 

@@ -24,6 +24,8 @@ interface FloatingToolbarProps {
   setPenColor: (color: string) => void;
   penWidth: number;
   setPenWidth: (w: number) => void;
+  shapeColor?: string;
+  setShapeColor?: (color: string) => void;
   zoom: number;
   onZoomIn: () => void;
   onZoomOut: () => void;
@@ -37,11 +39,14 @@ interface FloatingToolbarProps {
   onDimensionsChange?: (dims: { width: number; height: number }) => void;
 }
 
-// Strictly restricted to Blue, White, and Black palette
-const PEN_COLORS = [
-  '#2563eb', // Royal Blue
-  '#60a5fa', // Light Blue
-  '#1d4ed8', // Dark Blue
+// Preset color palette for pen and shapes
+export const COLOR_PRESETS = [
+  '#2563eb', // Blue
+  '#ef4444', // Red
+  '#10b981', // Green
+  '#f59e0b', // Amber / Orange
+  '#8b5cf6', // Purple
+  '#ec4899', // Pink
   '#ffffff', // White
   '#000000', // Black
 ];
@@ -157,6 +162,8 @@ export default function FloatingToolbar({
   setPenColor,
   penWidth,
   setPenWidth,
+  shapeColor = '#2563eb',
+  setShapeColor,
   zoom,
   onZoomIn,
   onZoomOut,
@@ -226,24 +233,45 @@ export default function FloatingToolbar({
       {/* Pen Options Popup */}
       {showPenOptions && activeTool === 'pen' && (
         <div
-          className={`flex items-center gap-3 px-3 py-2 rounded-md backdrop-blur-xl border shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-150 ${
+          className={`flex items-center gap-2.5 px-3 py-2 rounded-md backdrop-blur-xl border shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-150 ${
             isLight
               ? 'bg-[#ffffff]/95 border-[#d8cfcf] text-[#2d2424]'
               : 'bg-[#241c1c]/95 border-[#524141] text-white'
           }`}
         >
+          {/* Preset Swatches & Custom Color Picker for Pen */}
           <div className="flex items-center gap-1.5">
-            {PEN_COLORS.map((c) => (
+            {COLOR_PRESETS.map((c) => (
               <button
                 key={c}
                 type="button"
+                title={`Pen color: ${c}`}
                 onClick={() => setPenColor(c)}
                 style={{ backgroundColor: c }}
-                className={`w-5 h-5 rounded-full transition-transform cursor-pointer border border-white/30 ${
-                  penColor === c ? 'ring-2 ring-blue-500 scale-110' : 'hover:scale-105 opacity-80'
+                className={`w-5 h-5 rounded-full transition-transform cursor-pointer border border-black/20 dark:border-white/30 ${
+                  penColor.toLowerCase() === c.toLowerCase()
+                    ? 'ring-2 ring-blue-500 scale-110 shadow-sm'
+                    : 'hover:scale-105 opacity-85'
                 }`}
               />
             ))}
+
+            {/* Custom Color Picker for Pen */}
+            <label
+              title={`Custom Pen Color (Current: ${penColor})`}
+              className="relative flex items-center justify-center w-5 h-5 rounded-full cursor-pointer hover:scale-115 transition-transform overflow-hidden border border-black/30 dark:border-white/40 shadow-sm ml-0.5"
+              style={{
+                background:
+                  'conic-gradient(from 180deg at 50% 50%, #f43f5e 0deg, #eab308 60deg, #22c55e 120deg, #06b6d4 180deg, #3b82f6 240deg, #a855f7 300deg, #f43f5e 360deg)',
+              }}
+            >
+              <input
+                type="color"
+                value={penColor.startsWith('#') ? penColor : '#2563eb'}
+                onChange={(e) => setPenColor(e.target.value)}
+                className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
+              />
+            </label>
           </div>
 
           <div className={`h-4 w-[1px] ${isLight ? 'bg-black/20' : 'bg-white/20'}`} />
@@ -359,45 +387,90 @@ export default function FloatingToolbar({
                 setShowShapesMenu((prev) => !prev);
                 setShowPenOptions(false);
               }}
-              className={`flex items-center justify-center w-9 h-9 rounded-md transition-all cursor-pointer ${
+              className={`relative flex items-center justify-center w-9 h-9 rounded-md transition-all cursor-pointer ${
                 showShapesMenu || activeTool === 'shape'
                   ? 'bg-blue-600 text-white shadow-md'
                   : inactiveBtnClass
               }`}
             >
               <ShapeIcon size={17} />
+              <span
+                style={{ backgroundColor: shapeColor }}
+                className="absolute bottom-1 right-1 w-2 h-2 rounded-full border border-black shadow-xs"
+              />
             </button>
           </ToolbarTooltip>
 
-          {/* Upward-opening shapes menu */}
+          {/* Upward-opening shapes menu with shape types and color options */}
           {showShapesMenu && (
             <div
-              className={`absolute bottom-full mb-3 left-1/2 -translate-x-1/2 flex items-center gap-1 p-1 rounded-md backdrop-blur-xl border shadow-2xl z-50 animate-in fade-in slide-in-from-bottom-2 duration-150 whitespace-nowrap ${
+              className={`absolute bottom-full mb-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 p-1.5 rounded-md backdrop-blur-xl border shadow-2xl z-50 animate-in fade-in slide-in-from-bottom-2 duration-150 whitespace-nowrap ${
                 isLight
                   ? 'bg-[#ffffff]/95 border-[#d8cfcf] text-[#2d2424] shadow-black/10'
                   : 'bg-[#241c1c]/95 border-[#524141] text-white shadow-black/80'
               }`}
             >
-              {SHAPES_LIST.map((shape) => (
-                <ToolbarTooltip key={shape.kind} label={shape.label} isLight={isLight}>
+              {/* Shape Kind Buttons */}
+              <div className="flex items-center gap-1">
+                {SHAPES_LIST.map((shape) => (
+                  <ToolbarTooltip key={shape.kind} label={shape.label} isLight={isLight}>
+                    <button
+                      type="button"
+                      aria-label={`Add ${shape.label}`}
+                      onClick={() => {
+                        onAddShape?.(shape.kind);
+                        setActiveTool('select');
+                        setShowShapesMenu(false);
+                      }}
+                      className={`flex items-center justify-center w-8 h-8 rounded-md transition-colors cursor-pointer ${
+                        isLight
+                          ? 'text-[#5a4848] hover:text-[#18181b] hover:bg-black/5'
+                          : 'text-white/70 hover:text-white hover:bg-white/10'
+                      }`}
+                    >
+                      {shape.icon}
+                    </button>
+                  </ToolbarTooltip>
+                ))}
+              </div>
+
+              {/* Divider */}
+              <div className={`h-5 w-[1px] ${isLight ? 'bg-black/15' : 'bg-white/15'}`} />
+
+              {/* Shape Color Options & Picker */}
+              <div className="flex items-center gap-1 px-1">
+                {COLOR_PRESETS.map((c) => (
                   <button
+                    key={c}
                     type="button"
-                    aria-label={`Add ${shape.label}`}
-                    onClick={() => {
-                      onAddShape?.(shape.kind);
-                      setActiveTool('select');
-                      setShowShapesMenu(false);
-                    }}
-                    className={`flex items-center justify-center w-9 h-9 rounded-md transition-colors cursor-pointer ${
-                      isLight
-                        ? 'text-[#5a4848] hover:text-[#18181b] hover:bg-black/5'
-                        : 'text-white/70 hover:text-white hover:bg-white/10'
+                    title={`Shape color: ${c}`}
+                    onClick={() => setShapeColor?.(c)}
+                    style={{ backgroundColor: c }}
+                    className={`w-4 h-4 rounded-full transition-transform cursor-pointer border border-black/20 dark:border-white/30 ${
+                      shapeColor.toLowerCase() === c.toLowerCase()
+                        ? 'ring-2 ring-blue-500 scale-125 shadow-sm'
+                        : 'hover:scale-110 opacity-80'
                     }`}
-                  >
-                    {shape.icon}
-                  </button>
-                </ToolbarTooltip>
-              ))}
+                  />
+                ))}
+
+                {/* Custom Color Picker for Shapes */}
+                <label
+                  title={`Custom Shape Color (Current: ${shapeColor})`}
+                  className="relative flex items-center justify-center w-4 h-4 rounded-full cursor-pointer hover:scale-125 transition-transform overflow-hidden border border-black/30 dark:border-white/40 shadow-sm ml-0.5"
+                  style={{
+                    background:
+                      'conic-gradient(from 180deg at 50% 50%, #f43f5e 0deg, #eab308 60deg, #22c55e 120deg, #06b6d4 180deg, #3b82f6 240deg, #a855f7 300deg, #f43f5e 360deg)',
+                  }}
+                >
+                  <input
+                    type="color"
+                    value={shapeColor.startsWith('#') ? shapeColor : '#2563eb'}
+                    onChange={(e) => setShapeColor?.(e.target.value)}
+                    className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
+                  />
+                </label>
+              </div>
             </div>
           )}
         </div>

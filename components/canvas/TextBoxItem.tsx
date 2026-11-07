@@ -10,8 +10,10 @@ interface TextBoxItemProps {
   item: CanvasItem;
   zoom: number;
   isSelected: boolean;
-  onSelect: (id: string) => void;
+  onSelect: (id: string, e?: React.MouseEvent) => void;
   onUpdate: (id: string, updates: Partial<CanvasItem>) => void;
+  onDragStart?: (id: string) => void;
+  onDragMove?: (id: string, deltaX: number, deltaY: number) => void;
   onRemove: (id: string) => void;
 }
 
@@ -23,6 +25,8 @@ export default function TextBoxItem({
   isSelected,
   onSelect,
   onUpdate,
+  onDragStart,
+  onDragMove,
   onRemove,
 }: TextBoxItemProps) {
   // If item was just created (within 2 seconds and content is empty), start in edit mode
@@ -63,6 +67,8 @@ export default function TextBoxItem({
       isSelected={isSelected}
       onSelect={onSelect}
       onUpdate={onUpdate}
+      onDragStart={onDragStart}
+      onDragMove={onDragMove}
       onRemove={onRemove}
     >
       <div

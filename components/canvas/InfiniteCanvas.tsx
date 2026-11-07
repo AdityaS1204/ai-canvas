@@ -33,6 +33,7 @@ import MediaUploadModal from '../modals/MediaUploadModal';
 import CloudinaryConfigModal from '../modals/CloudinaryConfigModal';
 import JsonViewerModal from '../modals/JsonViewerModal';
 import ClearCanvasModal from '../modals/ClearCanvasModal';
+import ShapeRotationModal from '../modals/ShapeRotationModal';
 
 
 export default function InfiniteCanvas() {
@@ -40,15 +41,34 @@ export default function InfiniteCanvas() {
 
   // Canvas State
   const [items, setItems] = useState<CanvasItem[]>(INITIAL_CANVAS_STATE.items);
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
   const [strokes, setStrokes] = useState<DrawingStroke[]>([]);
   const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [zoom, setZoom] = useState<number>(1);
-  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
+  const selectedItemId = selectedItemIds.length === 1 ? selectedItemIds[0] : null;
 
-  // Active Tool & Pen state (restricted to blue, white, black)
+  // Multi-selection & Marquee state
+  const isMarqueeSelecting = useRef(false);
+  const marqueeStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [marqueeBox, setMarqueeBox] = useState<{
+    startX: number;
+    startY: number;
+    currentX: number;
+    currentY: number;
+  } | null>(null);
+  const lastPointerDownTimeRef = useRef<number>(0);
+  const lastPointerDownPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const lastPointerUpTimeRef = useRef<number>(0);
+  const lastPointerUpPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const dragItemStartPositions = useRef<Record<string, { x: number; y: number }>>({});
+
+  // Active Tool & Pen/Shape color state
   const [activeTool, setActiveTool] = useState<ActiveTool>('select');
   const [penColor, setPenColor] = useState<string>('#2563eb');
   const [penWidth, setPenWidth] = useState<number>(4);
+  const [shapeColor, setShapeColor] = useState<string>('#2563eb');
   const [currentStroke, setCurrentStroke] = useState<DrawingStroke | null>(null);
   const currentStrokeRef = useRef<DrawingStroke | null>(null);
   const isDrawing = useRef(false);
@@ -78,6 +98,7 @@ export default function InfiniteCanvas() {
   const [isCloudinaryModalOpen, setIsCloudinaryModalOpen] = useState(false);
   const [isJsonModalOpen, setIsJsonModalOpen] = useState(false);
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
+  const [rotatingShapeId, setRotatingShapeId] = useState<string | null>(null);
   const [cloudinaryConfig, setCloudinaryConfig] = useState<CloudinaryConfig>(getStoredCloudinaryConfig());
 
   // Toast feedback
@@ -154,15 +175,68 @@ export default function InfiniteCanvas() {
       }
       return prev.filter((item) => item.id !== id);
     });
-    setSelectedItemId((current) => (current === id ? null : current));
+    setSelectedItemIds((current) => current.filter((i) => i !== id));
   }, []);
 
-  const handleSelectItem = useCallback((id: string) => {
-    setSelectedItemId(id);
+  const handleRemoveSelectedItems = useCallback(() => {
+    setSelectedItemIds((prevSelected) => {
+      if (prevSelected.length === 0) return prevSelected;
+      const count = prevSelected.length;
+      setItems((itemsList) => itemsList.filter((item) => !prevSelected.includes(item.id)));
+      showToast(count === 1 ? 'Removed item' : `Removed ${count} items`);
+      return [];
+    });
+  }, []);
+
+  const handleSelectItem = useCallback((id: string, e?: React.MouseEvent) => {
+    const isShift = e?.shiftKey;
+    setSelectedItemIds((prev) => {
+      if (isShift) {
+        return prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id];
+      }
+      if (prev.includes(id)) {
+        return prev;
+      }
+      return [id];
+    });
+
     setItems((prev) => {
       const maxZ = Math.max(...prev.map((i) => i.zIndex), 0) + 1;
       return prev.map((item) => (item.id === id ? { ...item, zIndex: maxZ } : item));
     });
+  }, []);
+
+  // Multi-drag: snapshot start positions when drag starts on any item in selection
+  const handleDragStartItem = useCallback((id: string) => {
+    setSelectedItemIds((prev) => {
+      const active = prev.includes(id) ? prev : [id];
+      const starts: Record<string, { x: number; y: number }> = {};
+      itemsRef.current.forEach((it) => {
+        if (active.includes(it.id)) {
+          starts[it.id] = { x: it.x, y: it.y };
+        }
+      });
+      dragItemStartPositions.current = starts;
+      return active;
+    });
+  }, []);
+
+  // Multi-drag: move all selected items simultaneously by the same world delta
+  const handleDragMoveItem = useCallback((id: string, deltaX: number, deltaY: number) => {
+    const starts = dragItemStartPositions.current;
+    setItems((prev) =>
+      prev.map((it) => {
+        const start = starts[it.id];
+        if (start) {
+          return {
+            ...it,
+            x: Math.round(start.x + deltaX),
+            y: Math.round(start.y + deltaY),
+          };
+        }
+        return it;
+      })
+    );
   }, []);
 
   // Create a new Text Box at specified world coordinates
@@ -181,7 +255,7 @@ export default function InfiniteCanvas() {
       createdAt: Date.now(),
     };
     setItems((prev) => [...prev, newItem]);
-    setSelectedItemId(newItem.id);
+    setSelectedItemIds([newItem.id]);
     showToast('New text box opened');
   }, [items]);
 
@@ -218,7 +292,7 @@ export default function InfiniteCanvas() {
     };
 
     setItems((prev) => [...prev, newItem]);
-    setSelectedItemId(newItem.id);
+    setSelectedItemIds([newItem.id]);
     showToast(`Added ${data.type} to canvas`);
   };
 
@@ -245,15 +319,15 @@ export default function InfiniteCanvas() {
       y: Math.round(center.y - height / 2),
       width,
       height,
-      strokeColor: '#3b82f6',
-      fillColor: kind === 'line' || kind === 'arrow' ? 'transparent' : 'rgba(59, 130, 246, 0.12)',
-      strokeWidth: 3,
+      strokeColor: shapeColor,
+      fillColor: 'transparent',
+      strokeWidth: penWidth || 3,
       zIndex: maxZ,
       createdAt: Date.now(),
     };
 
     setItems((prev) => [...prev, newShape]);
-    setSelectedItemId(newShape.id);
+    setSelectedItemIds([newShape.id]);
     showToast(`Added ${kind} to canvas`);
   };
 
@@ -415,7 +489,7 @@ export default function InfiniteCanvas() {
       };
       currentStrokeRef.current = newStroke;
       setCurrentStroke(newStroke);
-      setSelectedItemId(null);
+      setSelectedItemIds([]);
       return;
     }
 
@@ -432,14 +506,64 @@ export default function InfiniteCanvas() {
         y: Number(((e.clientY - pan.y) / zoom).toFixed(1)),
       };
       eraseStrokesAt(pt);
-      setSelectedItemId(null);
+      setSelectedItemIds([]);
       return;
     }
 
-    // Select tool active -> Left click on background pans canvas, deselects cards
+    // Select tool active -> Double click & drag activates marquee selection; single click pans
     if (activeTool === 'select' && isLeftButton) {
       const clickedOnCard = (e.target as HTMLElement).closest('.group');
       if (!clickedOnCard) {
+        const now = Date.now();
+        const timeSinceDown = now - lastPointerDownTimeRef.current;
+        const timeSinceUp = now - lastPointerUpTimeRef.current;
+        const distDown = Math.hypot(
+          e.clientX - lastPointerDownPosRef.current.x,
+          e.clientY - lastPointerDownPosRef.current.y
+        );
+        const distUp = Math.hypot(
+          e.clientX - lastPointerUpPosRef.current.x,
+          e.clientY - lastPointerUpPosRef.current.y
+        );
+
+        // Double click detected!
+        // 1. Native e.detail >= 2
+        // 2. Click down within 650ms and 60px of previous down
+        // 3. Click down within 650ms and 60px of previous up
+        // 4. Or Shift key held for immediate box selection
+        const isDoubleClick =
+          e.detail >= 2 ||
+          (timeSinceDown < 650 && distDown < 60) ||
+          (timeSinceUp < 650 && distUp < 60) ||
+          e.shiftKey;
+
+        if (isDoubleClick) {
+          isMarqueeSelecting.current = true;
+          isPanning.current = false;
+          lastPointerDownTimeRef.current = 0;
+          lastPointerUpTimeRef.current = 0;
+
+          try {
+            e.currentTarget.setPointerCapture(e.pointerId);
+          } catch {
+            // ignore
+          }
+
+          const worldX = (e.clientX - pan.x) / zoom;
+          const worldY = (e.clientY - pan.y) / zoom;
+          marqueeStartRef.current = { x: worldX, y: worldY };
+          setMarqueeBox({
+            startX: worldX,
+            startY: worldY,
+            currentX: worldX,
+            currentY: worldY,
+          });
+          return;
+        }
+
+        // Single click: prepare for canvas pan and record for double-click detection
+        lastPointerDownTimeRef.current = now;
+        lastPointerDownPosRef.current = { x: e.clientX, y: e.clientY };
         isPanning.current = true;
         panStart.current = {
           clientX: e.clientX,
@@ -447,12 +571,49 @@ export default function InfiniteCanvas() {
           startPanX: pan.x,
           startPanY: pan.y,
         };
-        setSelectedItemId(null);
+        setSelectedItemIds([]);
       }
     }
   };
 
   const handleCanvasPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    // 0. Marquee selection (from double click & drag)
+    if (isMarqueeSelecting.current) {
+      const worldX = (e.clientX - pan.x) / zoom;
+      const worldY = (e.clientY - pan.y) / zoom;
+      const startX = marqueeStartRef.current.x;
+      const startY = marqueeStartRef.current.y;
+
+      setMarqueeBox({
+        startX,
+        startY,
+        currentX: worldX,
+        currentY: worldY,
+      });
+
+      const minX = Math.min(startX, worldX);
+      const maxX = Math.max(startX, worldX);
+      const minY = Math.min(startY, worldY);
+      const maxY = Math.max(startY, worldY);
+
+      if (maxX - minX > 2 || maxY - minY > 2) {
+        const matches = itemsRef.current
+          .filter((item) => {
+            const itemR = item.x + item.width;
+            const itemB = item.y + item.height;
+            return (
+              item.x <= maxX &&
+              itemR >= minX &&
+              item.y <= maxY &&
+              itemB >= minY
+            );
+          })
+          .map((item) => item.id);
+        setSelectedItemIds(matches);
+      }
+      return;
+    }
+
     // 1. Panning canvas
     if (isPanning.current) {
       const dx = e.clientX - panStart.current.clientX;
@@ -503,6 +664,21 @@ export default function InfiniteCanvas() {
       }
     }
 
+    if (isMarqueeSelecting.current) {
+      isMarqueeSelecting.current = false;
+      setMarqueeBox(null);
+    }
+
+    // Record pointer up for double-click detection if not a long pan
+    const panDist = Math.hypot(
+      e.clientX - panStart.current.clientX,
+      e.clientY - panStart.current.clientY
+    );
+    if (!isDrawing.current && (!isPanning.current || panDist < 25)) {
+      lastPointerUpTimeRef.current = Date.now();
+      lastPointerUpPosRef.current = { x: e.clientX, y: e.clientY };
+    }
+
     isPanning.current = false;
     isErasing.current = false;
 
@@ -523,6 +699,10 @@ export default function InfiniteCanvas() {
     const handleGlobalPointerUp = () => {
       isPanning.current = false;
       isErasing.current = false;
+      if (isMarqueeSelecting.current) {
+        isMarqueeSelecting.current = false;
+        setMarqueeBox(null);
+      }
       if (isDrawing.current && currentStrokeRef.current) {
         isDrawing.current = false;
         const finalStroke = currentStrokeRef.current;
@@ -594,8 +774,8 @@ export default function InfiniteCanvas() {
           showToast('Undid drawing');
           return prev.slice(0, -1);
         });
-      } else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedItemId) {
-        handleRemoveItem(selectedItemId);
+      } else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedItemIds.length > 0) {
+        handleRemoveSelectedItems();
       }
     };
 
@@ -611,7 +791,7 @@ export default function InfiniteCanvas() {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [selectedItemId, handleRemoveItem]);
+  }, [selectedItemIds, handleRemoveSelectedItems]);
 
   return (
     <CanvasFrame
@@ -634,6 +814,8 @@ export default function InfiniteCanvas() {
             setPenColor={setPenColor}
             penWidth={penWidth}
             setPenWidth={setPenWidth}
+            shapeColor={shapeColor}
+            setShapeColor={setShapeColor}
             zoom={zoom}
             onZoomIn={handleZoomIn}
             onZoomOut={handleZoomOut}
@@ -698,6 +880,15 @@ export default function InfiniteCanvas() {
             }}
           />
 
+          {/* Separate Shape Rotation & 3D Axes Modal */}
+          <ShapeRotationModal
+            isOpen={Boolean(rotatingShapeId)}
+            onClose={() => setRotatingShapeId(null)}
+            item={items.find((i) => i.id === rotatingShapeId) || null}
+            onUpdate={handleUpdateItem}
+            theme={theme}
+          />
+
           {/* Toast Notification */}
           {toastMessage && (
             <div
@@ -708,6 +899,29 @@ export default function InfiniteCanvas() {
               }`}
             >
               {toastMessage}
+            </div>
+          )}
+
+          {/* Multi-selection pill badge */}
+          {selectedItemIds.length > 1 && !marqueeBox && (
+            <div
+              className={`fixed top-5 left-1/2 -translate-x-1/2 z-40 px-3.5 py-1.5 rounded-full border shadow-2xl backdrop-blur-md text-xs font-medium flex items-center gap-2 animate-in fade-in slide-in-from-top-2 duration-150 ${
+                theme === 'light'
+                  ? 'bg-white/95 border-blue-400 text-blue-900 shadow-blue-500/10'
+                  : 'bg-[#201b1b]/95 border-blue-500/50 text-blue-300 shadow-black/80'
+              }`}
+            >
+              <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+              <span>{selectedItemIds.length} items selected</span>
+              <span className="opacity-40">•</span>
+              <span className="opacity-75 text-[11px]">Drag any to move together</span>
+              <button
+                type="button"
+                onClick={() => setSelectedItemIds([])}
+                className="ml-1 text-[11px] underline opacity-70 hover:opacity-100 cursor-pointer"
+              >
+                Deselect
+              </button>
             </div>
           )}
         </>
@@ -722,6 +936,8 @@ export default function InfiniteCanvas() {
           theme === 'light' ? 'bg-[#f7f4f4]' : 'bg-[#221b1b]'
         } ${
           activeTool === 'pen' || activeTool === 'eraser'
+            ? 'cursor-crosshair'
+            : isMarqueeSelecting.current
             ? 'cursor-crosshair'
             : isPanning.current
             ? 'cursor-grabbing'
@@ -750,9 +966,22 @@ export default function InfiniteCanvas() {
             transformOrigin: '0 0',
           }}
         >
+          {/* Marquee Selection Rectangle (double click & drag) */}
+          {marqueeBox && (
+            <div
+              className="absolute pointer-events-none border-2 border-blue-500 bg-blue-500/15 rounded-sm z-[1000]"
+              style={{
+                left: `${Math.min(marqueeBox.startX, marqueeBox.currentX)}px`,
+                top: `${Math.min(marqueeBox.startY, marqueeBox.currentY)}px`,
+                width: `${Math.abs(marqueeBox.currentX - marqueeBox.startX)}px`,
+                height: `${Math.abs(marqueeBox.currentY - marqueeBox.startY)}px`,
+              }}
+            />
+          )}
+
           {/* Render Canvas Items */}
           {items.map((item) => {
-            const isSelected = selectedItemId === item.id;
+            const isSelected = selectedItemIds.includes(item.id);
             const commonProps = {
               item,
               zoom,
@@ -761,11 +990,19 @@ export default function InfiniteCanvas() {
               isPenActive: activeTool === 'pen' || activeTool === 'eraser',
               onSelect: handleSelectItem,
               onUpdate: handleUpdateItem,
+              onDragStart: handleDragStartItem,
+              onDragMove: handleDragMoveItem,
               onRemove: handleRemoveItem,
             };
 
             if (item.type === 'shape') {
-              return <ShapeItem key={item.id} {...commonProps} />;
+              return (
+                <ShapeItem
+                  key={item.id}
+                  {...commonProps}
+                  onOpenRotateModal={(id) => setRotatingShapeId(id)}
+                />
+              );
             }
             if (item.type === 'text') {
               return <TextBoxItem key={item.id} {...commonProps} />;

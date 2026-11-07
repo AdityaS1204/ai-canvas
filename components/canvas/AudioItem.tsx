@@ -10,8 +10,10 @@ interface AudioItemProps {
   item: CanvasItem;
   zoom: number;
   isSelected: boolean;
-  onSelect: (id: string) => void;
+  onSelect: (id: string, e?: React.MouseEvent) => void;
   onUpdate: (id: string, updates: Partial<CanvasItem>) => void;
+  onDragStart?: (id: string) => void;
+  onDragMove?: (id: string, deltaX: number, deltaY: number) => void;
   onRemove: (id: string) => void;
 }
 
@@ -23,6 +25,8 @@ export default function AudioItem({
   isSelected,
   onSelect,
   onUpdate,
+  onDragStart,
+  onDragMove,
   onRemove,
 }: AudioItemProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -77,6 +81,8 @@ export default function AudioItem({
       isSelected={isSelected}
       onSelect={onSelect}
       onUpdate={onUpdate}
+      onDragStart={onDragStart}
+      onDragMove={onDragMove}
       onRemove={onRemove}
     >
       <div

@@ -10,8 +10,10 @@ interface ImageItemProps {
   item: CanvasItem;
   zoom: number;
   isSelected: boolean;
-  onSelect: (id: string) => void;
+  onSelect: (id: string, e?: React.MouseEvent) => void;
   onUpdate: (id: string, updates: Partial<CanvasItem>) => void;
+  onDragStart?: (id: string) => void;
+  onDragMove?: (id: string, deltaX: number, deltaY: number) => void;
   onRemove: (id: string) => void;
 }
 
@@ -23,6 +25,8 @@ export default function ImageItem({
   isSelected,
   onSelect,
   onUpdate,
+  onDragStart,
+  onDragMove,
   onRemove,
 }: ImageItemProps) {
   const [hasError, setHasError] = useState(false);
@@ -37,6 +41,8 @@ export default function ImageItem({
       isSelected={isSelected}
       onSelect={onSelect}
       onUpdate={onUpdate}
+      onDragStart={onDragStart}
+      onDragMove={onDragMove}
       onRemove={onRemove}
     >
       <div className="relative w-full h-full flex items-center justify-center bg-black rounded-xl overflow-hidden group/img">
