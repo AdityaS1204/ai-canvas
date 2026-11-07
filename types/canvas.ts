@@ -54,6 +54,28 @@ export interface DrawingStroke {
   width: number;
 }
 
+export type AnchorSide = 'top' | 'right' | 'bottom' | 'left';
+
+export interface ConnectorAnchor {
+  itemId: string;
+  side: AnchorSide;
+}
+
+export interface CanvasConnector {
+  id: string;
+  from: ConnectorAnchor | { x: number; y: number };
+  to: ConnectorAnchor | { x: number; y: number };
+  color?: string;
+  strokeWidth?: number;
+  style?: 'orthogonal' | 'curved' | 'straight';
+  cornerStyle?: 'rounded' | 'sharp';
+  cornerRadius?: number;
+  waypoints?: { x: number; y: number }[];
+  hasArrow?: boolean;
+  label?: string;
+  createdAt: number;
+}
+
 export interface ViewportTransform {
   x: number;
   y: number;
@@ -63,6 +85,7 @@ export interface ViewportTransform {
 export interface CanvasState {
   version: string;
   items: CanvasItem[];
+  connectors?: CanvasConnector[];
   strokes: DrawingStroke[];
   viewport: ViewportTransform;
   lastUpdated: number;
@@ -76,5 +99,5 @@ export interface CloudinaryConfig {
 
 export type ThemeMode = 'dark' | 'light';
 
-export type ActiveTool = 'select' | 'pan' | 'pen' | 'text' | 'image' | 'video' | 'audio' | 'eraser' | 'shape';
+export type ActiveTool = 'select' | 'pan' | 'pen' | 'text' | 'image' | 'video' | 'audio' | 'eraser' | 'shape' | 'connector';
 

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { CanvasItem } from '@/types/canvas';
+import { CanvasItem, AnchorSide } from '@/types/canvas';
 import CanvasItemCard from './CanvasItemCard';
 
 interface ImageItemProps {
@@ -15,6 +15,9 @@ interface ImageItemProps {
   onDragStart?: (id: string) => void;
   onDragMove?: (id: string, deltaX: number, deltaY: number) => void;
   onRemove: (id: string) => void;
+  onStartConnect?: (itemId: string, side: AnchorSide, e: React.MouseEvent) => void;
+  isConnecting?: boolean;
+  snappedSide?: AnchorSide | null;
 }
 
 export default function ImageItem({
@@ -28,6 +31,9 @@ export default function ImageItem({
   onDragStart,
   onDragMove,
   onRemove,
+  onStartConnect,
+  isConnecting,
+  snappedSide,
 }: ImageItemProps) {
   const [hasError, setHasError] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -44,6 +50,9 @@ export default function ImageItem({
       onDragStart={onDragStart}
       onDragMove={onDragMove}
       onRemove={onRemove}
+      onStartConnect={onStartConnect}
+      isConnecting={isConnecting}
+      snappedSide={snappedSide}
     >
       <div className="relative w-full h-full flex items-center justify-center bg-black rounded-xl overflow-hidden group/img">
         {!isLoaded && !hasError && (

@@ -413,8 +413,14 @@
   .h-2 {
     height: calc(var(--spacing) * 2);
   }
+  .h-2\.5 {
+    height: calc(var(--spacing) * 2.5);
+  }
   .h-3 {
     height: calc(var(--spacing) * 3);
+  }
+  .h-3\.5 {
+    height: calc(var(--spacing) * 3.5);
   }
   .h-4 {
     height: calc(var(--spacing) * 4);
@@ -470,8 +476,14 @@
   .w-2 {
     width: calc(var(--spacing) * 2);
   }
+  .w-2\.5 {
+    width: calc(var(--spacing) * 2.5);
+  }
   .w-3 {
     width: calc(var(--spacing) * 3);
+  }
+  .w-3\.5 {
+    width: calc(var(--spacing) * 3.5);
   }
   .w-4 {
     width: calc(var(--spacing) * 4);
@@ -573,6 +585,9 @@
   }
   .cursor-grabbing {
     cursor: grabbing;
+  }
+  .cursor-move {
+    cursor: move;
   }
   .cursor-nesw-resize {
     cursor: nesw-resize;
@@ -1375,6 +1390,9 @@
   .opacity-50 {
     opacity: 50%;
   }
+  .opacity-60 {
+    opacity: 60%;
+  }
   .opacity-70 {
     opacity: 70%;
   }
@@ -1480,6 +1498,9 @@
       --tw-ring-color: color-mix(in oklab, var(--color-black) 40%, transparent);
     }
   }
+  .ring-blue-400 {
+    --tw-ring-color: var(--color-blue-400);
+  }
   .ring-blue-500 {
     --tw-ring-color: var(--color-blue-500);
   }
@@ -1488,6 +1509,9 @@
   }
   .ring-neutral-400 {
     --tw-ring-color: var(--color-neutral-400);
+  }
+  .ring-white {
+    --tw-ring-color: var(--color-white);
   }
   .ring-white\/10 {
     --tw-ring-color: color-mix(in srgb, #fff 10%, transparent);
@@ -1546,6 +1570,10 @@
     transition-property: transform, translate, scale, rotate;
     transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
     transition-duration: var(--tw-duration, var(--default-transition-duration));
+  }
+  .duration-100 {
+    --tw-duration: 100ms;
+    transition-duration: 100ms;
   }
   .duration-150 {
     --tw-duration: 150ms;
@@ -1703,6 +1731,9 @@
     }
     .hover\:bg-blue-500:hover {
       background-color: var(--color-blue-500);
+    }
+    .hover\:bg-blue-600:hover {
+      background-color: var(--color-blue-600);
     }
     .hover\:bg-blue-600\/20:hover {
       background-color: color-mix(in srgb, oklch(54.6% 0.245 262.881) 20%, transparent);
@@ -1893,6 +1924,16 @@
     @supports (color: color-mix(in lab, red, red)) {
       .dark\:border-white\/40 {
         border-color: color-mix(in oklab, var(--color-white) 40%, transparent);
+      }
+    }
+    @media (hover: hover) {
+      .dark\:hover\:bg-white\/10:hover {
+        background-color: color-mix(in srgb, #fff 10%, transparent);
+      }
+      @supports (color: color-mix(in lab, red, red)) {
+        .dark\:hover\:bg-white\/10:hover {
+          background-color: color-mix(in oklab, var(--color-white) 10%, transparent);
+        }
       }
     }
   }

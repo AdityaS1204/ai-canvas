@@ -12,6 +12,8 @@ import {
   ShapeKind,
   StorageMeta,
   CloudinaryConfig,
+  CanvasConnector,
+  AnchorSide,
 } from '@/types/canvas';
 import {
   loadSavedCanvasState,
@@ -19,6 +21,7 @@ import {
   INITIAL_CANVAS_STATE,
 } from '@/lib/storage';
 import { getStoredCloudinaryConfig } from '@/lib/cloudinary';
+import { findNearestAnchor, getAnchorPosition } from '@/lib/connectorUtils';
 
 // Components
 import TextBoxItem from './TextBoxItem';
@@ -27,6 +30,7 @@ import VideoItem from './VideoItem';
 import AudioItem from './AudioItem';
 import ShapeItem from './ShapeItem';
 import DrawingCanvas from './DrawingCanvas';
+import ConnectorLayer from './ConnectorLayer';
 import CanvasFrame from './CanvasFrame';
 import FloatingToolbar from '../toolbar/FloatingToolbar';
 import MediaUploadModal from '../modals/MediaUploadModal';
@@ -47,6 +51,23 @@ export default function InfiniteCanvas() {
   const [zoom, setZoom] = useState<number>(1);
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
   const selectedItemId = selectedItemIds.length === 1 ? selectedItemIds[0] : null;
+
+  // Connectors State
+  const [connectors, setConnectors] = useState<CanvasConnector[]>(INITIAL_CANVAS_STATE.connectors || []);
+  const [selectedConnectorId, setSelectedConnectorId] = useState<string | null>(null);
+  const [connectingDraft, setConnectingDraft] = useState<{
+    connectorId?: string;
+    reconnectingEnd?: 'from' | 'to';
+    fromItem: CanvasItem;
+    fromSide: AnchorSide;
+    currentPos: { x: number; y: number };
+  } | null>(null);
+  const [snappedAnchor, setSnappedAnchor] = useState<{
+    itemId: string;
+    side: AnchorSide;
+  } | null>(null);
+  const snappedAnchorRef = useRef<{ itemId: string; side: AnchorSide } | null>(null);
+  snappedAnchorRef.current = snappedAnchor;
 
   // Multi-selection & Marquee state
   const isMarqueeSelecting = useRef(false);
@@ -114,6 +135,7 @@ export default function InfiniteCanvas() {
     if (saved && saved.items) {
       setItems(saved.items);
       setStrokes(saved.strokes || []);
+      setConnectors(saved.connectors || []);
       if (saved.viewport) {
         setPan({ x: saved.viewport.x, y: saved.viewport.y });
         setZoom(saved.viewport.scale || 1);
@@ -132,12 +154,13 @@ export default function InfiniteCanvas() {
         version: '1.0.0',
         items,
         strokes,
+        connectors,
         viewport: { x: pan.x, y: pan.y, scale: zoom },
         lastUpdated: Date.now(),
       });
     }, 600);
     return () => clearTimeout(timer);
-  }, [items, strokes, pan, zoom]);
+  }, [items, strokes, connectors, pan, zoom]);
 
   // Convert Screen Coordinates to Canvas World Coordinates
   const screenToWorld = useCallback(
@@ -173,6 +196,14 @@ export default function InfiniteCanvas() {
       return prev.filter((item) => item.id !== id);
     });
     setSelectedItemIds((current) => current.filter((i) => i !== id));
+    // Clean up any connectors anchored to this item
+    setConnectors((prev) =>
+      prev.filter((c) => {
+        const fromId = typeof c.from === 'object' && 'itemId' in c.from ? c.from.itemId : null;
+        const toId = typeof c.to === 'object' && 'itemId' in c.to ? c.to.itemId : null;
+        return fromId !== id && toId !== id;
+      })
+    );
   }, []);
 
   const handleRemoveSelectedItems = useCallback(() => {
@@ -180,12 +211,20 @@ export default function InfiniteCanvas() {
       if (prevSelected.length === 0) return prevSelected;
       const count = prevSelected.length;
       setItems((itemsList) => itemsList.filter((item) => !prevSelected.includes(item.id)));
+      setConnectors((prev) =>
+        prev.filter((c) => {
+          const fromId = typeof c.from === 'object' && 'itemId' in c.from ? c.from.itemId : null;
+          const toId = typeof c.to === 'object' && 'itemId' in c.to ? c.to.itemId : null;
+          return !prevSelected.includes(fromId || '') && !prevSelected.includes(toId || '');
+        })
+      );
       showToast(count === 1 ? 'Removed item' : `Removed ${count} items`);
       return [];
     });
   }, []);
 
   const handleSelectItem = useCallback((id: string, e?: React.MouseEvent) => {
+    setSelectedConnectorId(null);
     const isShift = e?.shiftKey;
     setSelectedItemIds((prev) => {
       if (isShift) {
@@ -202,6 +241,137 @@ export default function InfiniteCanvas() {
       return prev.map((item) => (item.id === id ? { ...item, zIndex: maxZ } : item));
     });
   }, []);
+
+  // --- SMART CONNECTOR HANDLERS ---
+  const handleStartConnect = useCallback(
+    (itemId: string, side: AnchorSide, e: React.MouseEvent) => {
+      e.stopPropagation();
+      const fromItem = itemsRef.current.find((it) => it.id === itemId);
+      if (!fromItem) return;
+
+      const fromPos = getAnchorPosition(fromItem, side);
+      setConnectingDraft({
+        fromItem,
+        fromSide: side,
+        currentPos: fromPos,
+      });
+      setSnappedAnchor(null);
+      setSelectedConnectorId(null);
+      setSelectedItemIds([]);
+    },
+    []
+  );
+
+  const handleStartDragEndpoint = useCallback(
+    (connectorId: string, endpoint: 'from' | 'to', e: React.MouseEvent) => {
+      e.stopPropagation();
+      const conn = connectors.find((c) => c.id === connectorId);
+      if (!conn) return;
+
+      const fixedEnd = endpoint === 'from' ? conn.to : conn.from;
+      if (typeof fixedEnd === 'object' && 'itemId' in fixedEnd) {
+        const fixedItem = itemsRef.current.find((it) => it.id === fixedEnd.itemId);
+        if (fixedItem) {
+          const currentPos = screenToWorld(e.clientX, e.clientY);
+          setConnectingDraft({
+            connectorId,
+            reconnectingEnd: endpoint,
+            fromItem: fixedItem,
+            fromSide: fixedEnd.side,
+            currentPos,
+          });
+          setSnappedAnchor(null);
+        }
+      }
+    },
+    [connectors, screenToWorld]
+  );
+
+  const handleUpdateConnector = useCallback(
+    (id: string, updates: Partial<CanvasConnector>) => {
+      setConnectors((prev) =>
+        prev.map((c) => (c.id === id ? { ...c, ...updates } : c))
+      );
+    },
+    []
+  );
+
+  const handleRemoveConnector = useCallback((id: string) => {
+    setConnectors((prev) => prev.filter((c) => c.id !== id));
+    setSelectedConnectorId((curr) => (curr === id ? null : curr));
+    showToast('Connector removed');
+  }, []);
+
+  // Track dragging connector across canvas and detect magnetic snapping to nearest anchor
+  useEffect(() => {
+    if (!connectingDraft) return;
+
+    const handleWindowPointerMove = (e: PointerEvent) => {
+      const worldPos = screenToWorld(e.clientX, e.clientY);
+      const nearest = findNearestAnchor(
+        itemsRef.current,
+        worldPos.x,
+        worldPos.y,
+        connectingDraft.fromItem.id,
+        36
+      );
+
+      setSnappedAnchor(nearest ? { itemId: nearest.item.id, side: nearest.side } : null);
+      setConnectingDraft((prev) =>
+        prev
+          ? {
+              ...prev,
+              currentPos: nearest ? nearest.position : worldPos,
+            }
+          : null
+      );
+    };
+
+    const handleWindowPointerUp = () => {
+      const target = snappedAnchorRef.current;
+      if (target) {
+        if (connectingDraft.connectorId && connectingDraft.reconnectingEnd) {
+          const connId = connectingDraft.connectorId;
+          const end = connectingDraft.reconnectingEnd;
+          setConnectors((prev) =>
+            prev.map((c) => {
+              if (c.id !== connId) return c;
+              if (end === 'from') {
+                return { ...c, from: { itemId: target.itemId, side: target.side } };
+              } else {
+                return { ...c, to: { itemId: target.itemId, side: target.side } };
+              }
+            })
+          );
+          setSelectedConnectorId(connId);
+          showToast('Connector re-anchored');
+        } else {
+          const newConn: CanvasConnector = {
+            id: `conn-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+            from: { itemId: connectingDraft.fromItem.id, side: connectingDraft.fromSide },
+            to: { itemId: target.itemId, side: target.side },
+            color: '#3b82f6',
+            strokeWidth: 2.5,
+            style: 'orthogonal',
+            hasArrow: true,
+            createdAt: Date.now(),
+          };
+          setConnectors((prev) => [...prev, newConn]);
+          setSelectedConnectorId(newConn.id);
+          showToast('Connected!');
+        }
+      }
+      setConnectingDraft(null);
+      setSnappedAnchor(null);
+    };
+
+    window.addEventListener('pointermove', handleWindowPointerMove);
+    window.addEventListener('pointerup', handleWindowPointerUp);
+    return () => {
+      window.removeEventListener('pointermove', handleWindowPointerMove);
+      window.removeEventListener('pointerup', handleWindowPointerUp);
+    };
+  }, [connectingDraft, screenToWorld]);
 
   // Multi-drag: snapshot start positions when drag starts on any item in selection
   const handleDragStartItem = useCallback((id: string) => {
@@ -511,6 +681,7 @@ export default function InfiniteCanvas() {
     if (activeTool === 'select' && isLeftButton) {
       const clickedOnCard = (e.target as HTMLElement).closest('.group');
       if (!clickedOnCard) {
+        setSelectedConnectorId(null);
         const now = Date.now();
         const timeSinceLastClick = now - lastClickTimeRef.current;
         const distFromLastClick = Math.hypot(
@@ -771,8 +942,12 @@ export default function InfiniteCanvas() {
           showToast('Undid drawing');
           return prev.slice(0, -1);
         });
-      } else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedItemIds.length > 0) {
-        handleRemoveSelectedItems();
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selectedConnectorId) {
+          handleRemoveConnector(selectedConnectorId);
+        } else if (selectedItemIds.length > 0) {
+          handleRemoveSelectedItems();
+        }
       }
     };
 
@@ -788,7 +963,7 @@ export default function InfiniteCanvas() {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [selectedItemIds, handleRemoveSelectedItems]);
+  }, [selectedItemIds, selectedConnectorId, handleRemoveSelectedItems, handleRemoveConnector]);
 
   return (
     <CanvasFrame
@@ -822,7 +997,10 @@ export default function InfiniteCanvas() {
             onOpenJsonModal={() => setIsJsonModalOpen(true)}
             onOpenCloudinaryModal={() => setIsCloudinaryModalOpen(true)}
             onAddShape={handleAddShape}
-            onClearCanvas={() => setItems([])}
+            onClearCanvas={() => {
+              setItems([]);
+              setConnectors([]);
+            }}
             onDimensionsChange={setToolbarDims}
           />
 
@@ -853,10 +1031,12 @@ export default function InfiniteCanvas() {
             onClose={() => setIsJsonModalOpen(false)}
             items={items}
             strokes={strokes}
+            connectors={connectors}
             viewport={{ x: pan.x, y: pan.y, scale: zoom }}
             onImportState={(newState) => {
               setItems(newState.items);
               setStrokes(newState.strokes || []);
+              setConnectors(newState.connectors || []);
               if (newState.viewport) {
                 setPan({ x: newState.viewport.x, y: newState.viewport.y });
                 setZoom(newState.viewport.scale || 1);
@@ -873,6 +1053,7 @@ export default function InfiniteCanvas() {
             onConfirmClear={() => {
               setItems([]);
               setStrokes([]);
+              setConnectors([]);
               showToast('Canvas cleared');
             }}
           />
@@ -967,6 +1148,46 @@ export default function InfiniteCanvas() {
             />
           )}
 
+          {/* Smart Connectors Layer (Anchored Arrows) */}
+          <ConnectorLayer
+            items={items}
+            connectors={connectors}
+            zoom={zoom}
+            selectedConnectorId={selectedConnectorId}
+            onSelectConnector={(id) => {
+              setSelectedConnectorId(id);
+              if (id) setSelectedItemIds([]);
+            }}
+            onUpdateConnector={handleUpdateConnector}
+            onRemoveConnector={handleRemoveConnector}
+            onStartDragEndpoint={handleStartDragEndpoint}
+            draftConnector={
+              connectingDraft
+                ? {
+                    from: { itemId: connectingDraft.fromItem.id, side: connectingDraft.fromSide },
+                    to: connectingDraft.currentPos,
+                    color: '#3b82f6',
+                    hasArrow: true,
+                    style: 'orthogonal',
+                  }
+                : null
+            }
+            snappedAnchor={
+              snappedAnchor
+                ? (() => {
+                    const item = items.find((it) => it.id === snappedAnchor.itemId);
+                    if (!item) return null;
+                    return {
+                      itemId: snappedAnchor.itemId,
+                      side: snappedAnchor.side,
+                      position: getAnchorPosition(item, snappedAnchor.side),
+                    };
+                  })()
+                : null
+            }
+            theme={theme}
+          />
+
           {/* Render Canvas Items */}
           {items.map((item) => {
             const isSelected = selectedItemIds.includes(item.id);
@@ -981,6 +1202,9 @@ export default function InfiniteCanvas() {
               onDragStart: handleDragStartItem,
               onDragMove: handleDragMoveItem,
               onRemove: handleRemoveItem,
+              onStartConnect: handleStartConnect,
+              isConnecting: Boolean(connectingDraft),
+              snappedSide: snappedAnchor?.itemId === item.id ? snappedAnchor.side : null,
             };
 
             if (item.type === 'shape') {

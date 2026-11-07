@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { CanvasItem } from '@/types/canvas';
+import { CanvasItem, AnchorSide } from '@/types/canvas';
 import { Close } from '@honeyicons/react';
+import AnchorPoints from './AnchorPoints';
 
 interface CanvasItemCardProps {
   theme?: 'dark' | 'light';
@@ -15,6 +16,9 @@ interface CanvasItemCardProps {
   onDragStart?: (id: string) => void;
   onDragMove?: (id: string, deltaX: number, deltaY: number) => void;
   onRemove: (id: string) => void;
+  onStartConnect?: (itemId: string, side: AnchorSide, e: React.MouseEvent) => void;
+  isConnecting?: boolean;
+  snappedSide?: AnchorSide | null;
   children: React.ReactNode;
 }
 
@@ -29,10 +33,14 @@ export default function CanvasItemCard({
   onDragStart,
   onDragMove,
   onRemove,
+  onStartConnect,
+  isConnecting,
+  snappedSide,
   children,
 }: CanvasItemCardProps) {
   const isLight = theme === 'light';
   const cardRef = useRef<HTMLDivElement>(null);
+  const [isHovered, setIsHovered] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
 
@@ -153,6 +161,8 @@ export default function CanvasItemCard({
   return (
     <div
       ref={cardRef}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       onMouseDown={handleDragStart}
       onClick={(e) => {
         e.stopPropagation();
@@ -236,6 +246,17 @@ export default function CanvasItemCard({
           <circle cx="6" cy="1" r="0.8" fill="currentColor" />
         </svg>
       </div>
+      {/* Magnetic Anchor Points */}
+      {onStartConnect && (
+        <AnchorPoints
+          itemId={item.id}
+          width={item.width}
+          height={item.height}
+          isVisible={!isPenActive && (isHovered || isSelected || Boolean(isConnecting))}
+          highlightedSide={snappedSide}
+          onStartConnect={onStartConnect}
+        />
+      )}
     </div>
   );
 }

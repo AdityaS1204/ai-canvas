@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { CanvasItem, CanvasState, DrawingStroke, ViewportTransform } from '@/types/canvas';
+import { CanvasItem, CanvasConnector, CanvasState, DrawingStroke, ViewportTransform } from '@/types/canvas';
 import { exportCanvasToJson, downloadJsonFile } from '@/lib/storage';
 import { Close, Download } from '@honeyicons/react';
 
@@ -9,6 +9,7 @@ interface JsonViewerModalProps {
   isOpen: boolean;
   onClose: () => void;
   items: CanvasItem[];
+  connectors?: CanvasConnector[];
   strokes: DrawingStroke[];
   viewport: ViewportTransform;
   onImportState: (state: CanvasState) => void;
@@ -18,6 +19,7 @@ export default function JsonViewerModal({
   isOpen,
   onClose,
   items,
+  connectors = [],
   strokes,
   viewport,
   onImportState,
@@ -29,7 +31,7 @@ export default function JsonViewerModal({
 
   if (!isOpen) return null;
 
-  const jsonString = exportCanvasToJson(items, strokes, viewport);
+  const jsonString = exportCanvasToJson(items, strokes, viewport, connectors);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(jsonString);

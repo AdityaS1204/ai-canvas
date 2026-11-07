@@ -1,4 +1,4 @@
-import { CanvasItem, CanvasState, DrawingStroke, ViewportTransform } from '@/types/canvas';
+import { CanvasItem, CanvasConnector, CanvasState, DrawingStroke, ViewportTransform } from '@/types/canvas';
 import { SAMPLE_CLOUDINARY_MEDIA } from './cloudinary';
 
 const LOCAL_STORAGE_CANVAS_KEY = 'ai_canvas_project_state_v1';
@@ -62,6 +62,7 @@ export const INITIAL_CANVAS_ITEMS: CanvasItem[] = [
 export const INITIAL_CANVAS_STATE: CanvasState = {
   version: '1.0.0',
   items: INITIAL_CANVAS_ITEMS,
+  connectors: [],
   strokes: [],
   viewport: { x: 0, y: 0, scale: 1 },
   lastUpdated: Date.now(),
@@ -92,10 +93,16 @@ export function saveCanvasState(state: CanvasState): void {
   }
 }
 
-export function exportCanvasToJson(items: CanvasItem[], strokes: DrawingStroke[], viewport: ViewportTransform): string {
+export function exportCanvasToJson(
+  items: CanvasItem[],
+  strokes: DrawingStroke[],
+  viewport: ViewportTransform,
+  connectors: CanvasConnector[] = []
+): string {
   const exportPayload: CanvasState = {
     version: '1.0.0',
     items,
+    connectors,
     strokes,
     viewport,
     lastUpdated: Date.now(),

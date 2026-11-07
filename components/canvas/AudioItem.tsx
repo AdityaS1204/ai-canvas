@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
-import { CanvasItem } from '@/types/canvas';
+import { CanvasItem, AnchorSide } from '@/types/canvas';
 import CanvasItemCard from './CanvasItemCard';
 
 interface AudioItemProps {
@@ -15,6 +15,9 @@ interface AudioItemProps {
   onDragStart?: (id: string) => void;
   onDragMove?: (id: string, deltaX: number, deltaY: number) => void;
   onRemove: (id: string) => void;
+  onStartConnect?: (itemId: string, side: AnchorSide, e: React.MouseEvent) => void;
+  isConnecting?: boolean;
+  snappedSide?: AnchorSide | null;
 }
 
 export default function AudioItem({
@@ -28,6 +31,9 @@ export default function AudioItem({
   onDragStart,
   onDragMove,
   onRemove,
+  onStartConnect,
+  isConnecting,
+  snappedSide,
 }: AudioItemProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -84,6 +90,9 @@ export default function AudioItem({
       onDragStart={onDragStart}
       onDragMove={onDragMove}
       onRemove={onRemove}
+      onStartConnect={onStartConnect}
+      isConnecting={isConnecting}
+      snappedSide={snappedSide}
     >
       <div
         className={`w-full h-full flex flex-col justify-between p-3 rounded-xl border transition-colors duration-150 ${

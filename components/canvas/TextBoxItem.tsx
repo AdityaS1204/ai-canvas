@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { CanvasItem } from '@/types/canvas';
+import { CanvasItem, AnchorSide } from '@/types/canvas';
 import CanvasItemCard from './CanvasItemCard';
 
 interface TextBoxItemProps {
@@ -15,6 +15,9 @@ interface TextBoxItemProps {
   onDragStart?: (id: string) => void;
   onDragMove?: (id: string, deltaX: number, deltaY: number) => void;
   onRemove: (id: string) => void;
+  onStartConnect?: (itemId: string, side: AnchorSide, e: React.MouseEvent) => void;
+  isConnecting?: boolean;
+  snappedSide?: AnchorSide | null;
 }
 
 export default function TextBoxItem({
@@ -28,6 +31,9 @@ export default function TextBoxItem({
   onDragStart,
   onDragMove,
   onRemove,
+  onStartConnect,
+  isConnecting,
+  snappedSide,
 }: TextBoxItemProps) {
   // If item was just created (within 2 seconds and content is empty), start in edit mode
   const [isEditing, setIsEditing] = useState(() => {
@@ -70,6 +76,9 @@ export default function TextBoxItem({
       onDragStart={onDragStart}
       onDragMove={onDragMove}
       onRemove={onRemove}
+      onStartConnect={onStartConnect}
+      isConnecting={isConnecting}
+      snappedSide={snappedSide}
     >
       <div
         onDoubleClick={handleDoubleClick}

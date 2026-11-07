@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { CanvasItem } from '@/types/canvas';
+import { CanvasItem, AnchorSide } from '@/types/canvas';
+import AnchorPoints from './AnchorPoints';
 
 interface ShapeItemProps {
   item: CanvasItem;
@@ -14,6 +15,9 @@ interface ShapeItemProps {
   onDragStart?: (id: string) => void;
   onDragMove?: (id: string, deltaX: number, deltaY: number) => void;
   onRemove: (id: string) => void;
+  onStartConnect?: (itemId: string, side: AnchorSide, e: React.MouseEvent) => void;
+  isConnecting?: boolean;
+  snappedSide?: AnchorSide | null;
 }
 
 type ResizeCorner = 'nw' | 'ne' | 'se' | 'sw';
@@ -30,6 +34,9 @@ export default function ShapeItem({
   onDragStart,
   onDragMove,
   onRemove,
+  onStartConnect,
+  isConnecting,
+  snappedSide,
 }: ShapeItemProps) {
   const isLight = theme === 'light';
   const shapeKind = item.shapeKind || 'rectangle';
@@ -44,6 +51,7 @@ export default function ShapeItem({
   const markerId = `arrowhead-${item.id}`;
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const [isHovered, setIsHovered] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [resizingCorner, setResizingCorner] = useState<ResizeCorner | null>(null);
   const [rotatingAxis, setRotatingAxis] = useState<RotateAxis | null>(null);
@@ -243,6 +251,8 @@ export default function ShapeItem({
   return (
     <div
       ref={containerRef}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       onMouseDown={handleDragStart}
       onClick={(e) => {
         e.stopPropagation();
@@ -281,14 +291,21 @@ export default function ShapeItem({
           <defs>
             <marker
               id={markerId}
-              markerWidth="8"
-              markerHeight="8"
-              refX="6"
-              refY="3"
+              markerWidth="16"
+              markerHeight="16"
+              refX="11.5"
+              refY="8"
               orient="auto"
-              markerUnits="strokeWidth"
+              markerUnits="userSpaceOnUse"
             >
-              <path d="M0,0 L0,6 L6,3 z" fill={strokeColor} />
+              <path
+                d="M 4 3 L 11.5 8 L 4 13"
+                fill="none"
+                stroke={strokeColor}
+                strokeWidth={sw}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             </marker>
           </defs>
         )}
@@ -479,6 +496,18 @@ export default function ShapeItem({
             className="absolute -bottom-1.5 -left-1.5 w-3 h-3 bg-white border-2 border-blue-600 rounded-[2px] shadow-sm cursor-nesw-resize pointer-events-auto hover:scale-125 transition-transform"
           />
         </>
+      )}
+
+      {/* Magnetic Anchor Points */}
+      {onStartConnect && (
+        <AnchorPoints
+          itemId={item.id}
+          width={width}
+          height={height}
+          isVisible={!isPenActive && (isHovered || isSelected || Boolean(isConnecting))}
+          highlightedSide={snappedSide}
+          onStartConnect={onStartConnect}
+        />
       )}
     </div>
   );

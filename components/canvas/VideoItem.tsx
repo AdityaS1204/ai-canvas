@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
-import { CanvasItem } from '@/types/canvas';
+import { CanvasItem, AnchorSide } from '@/types/canvas';
 import CanvasItemCard from './CanvasItemCard';
 import { parseVideoUrl } from '@/lib/video-parser';
 
@@ -16,6 +16,9 @@ interface VideoItemProps {
   onDragStart?: (id: string) => void;
   onDragMove?: (id: string, deltaX: number, deltaY: number) => void;
   onRemove: (id: string) => void;
+  onStartConnect?: (itemId: string, side: AnchorSide, e: React.MouseEvent) => void;
+  isConnecting?: boolean;
+  snappedSide?: AnchorSide | null;
 }
 
 export default function VideoItem({
@@ -29,6 +32,9 @@ export default function VideoItem({
   onDragStart,
   onDragMove,
   onRemove,
+  onStartConnect,
+  isConnecting,
+  snappedSide,
 }: VideoItemProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [hasError, setHasError] = useState(false);
@@ -47,6 +53,9 @@ export default function VideoItem({
       onDragStart={onDragStart}
       onDragMove={onDragMove}
       onRemove={onRemove}
+      onStartConnect={onStartConnect}
+      isConnecting={isConnecting}
+      snappedSide={snappedSide}
     >
       <div className="relative w-full h-full flex flex-col items-center justify-center bg-black rounded-xl overflow-hidden group/vid">
         {hasError ? (
