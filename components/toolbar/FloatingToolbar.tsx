@@ -10,6 +10,7 @@ import {
   FileVideo,
   MusicNote,
   Pointer,
+  Hand,
   ZoomIn,
   ZoomOut,
   Download,
@@ -37,6 +38,10 @@ interface FloatingToolbarProps {
   onClearCanvas: () => void;
   onAddShape: (kind: ShapeKind) => void;
   onDimensionsChange?: (dims: { width: number; height: number }) => void;
+  onUndo?: () => void;
+  onRedo?: () => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
 }
 
 // Preset color palette for pen and shapes
@@ -174,6 +179,10 @@ export default function FloatingToolbar({
   onOpenCloudinaryModal,
   onAddShape,
   onDimensionsChange,
+  onUndo,
+  onRedo,
+  canUndo = false,
+  canRedo = false,
 }: FloatingToolbarProps) {
   const [showPenOptions, setShowPenOptions] = useState(false);
   const [showShapesMenu, setShowShapesMenu] = useState(false);
@@ -311,8 +320,8 @@ export default function FloatingToolbar({
             : 'bg-[#231b1b] border-[#524141] shadow-black/80'
         }`}
       >
-        {/* Selection / Move tool */}
-        <ToolbarTooltip label="Select" shortcut="V" isLight={isLight}>
+        {/* Selection / Cursor tool */}
+        <ToolbarTooltip label="Select tool" shortcut="V" isLight={isLight}>
           <button
             type="button"
             aria-label="Select tool"
@@ -327,6 +336,25 @@ export default function FloatingToolbar({
             }`}
           >
             <Pointer size={17} />
+          </button>
+        </ToolbarTooltip>
+
+        {/* Hand / Pan canvas tool */}
+        <ToolbarTooltip label="Hand tool" shortcut="H" isLight={isLight}>
+          <button
+            type="button"
+            aria-label="Hand tool"
+            onClick={() => {
+              setActiveTool('hand');
+              setShowPenOptions(false);
+            }}
+            className={`flex items-center justify-center w-9 h-9 rounded-md transition-all cursor-pointer ${
+              activeTool === 'hand'
+                ? 'bg-blue-600 text-white shadow-md'
+                : inactiveBtnClass
+            }`}
+          >
+            <Hand size={17} />
           </button>
         </ToolbarTooltip>
 
@@ -568,6 +596,52 @@ export default function FloatingToolbar({
             <Download size={17} />
           </button>
         </ToolbarTooltip>
+
+        <div className={`h-5 w-[1px] mx-1 ${isLight ? 'bg-black/15' : 'bg-white/15'}`} />
+
+        {/* Undo Action */}
+        {onUndo && (
+          <ToolbarTooltip label="Undo" shortcut="Ctrl+Z" isLight={isLight}>
+            <button
+              type="button"
+              disabled={!canUndo}
+              aria-label="Undo"
+              onClick={onUndo}
+              className={`flex items-center justify-center w-8 h-8 rounded-md transition-all cursor-pointer ${
+                !canUndo
+                  ? 'opacity-30 cursor-not-allowed text-neutral-400'
+                  : inactiveBtnClass
+              }`}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 7v6h6" />
+                <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" />
+              </svg>
+            </button>
+          </ToolbarTooltip>
+        )}
+
+        {/* Redo Action */}
+        {onRedo && (
+          <ToolbarTooltip label="Redo" shortcut="Ctrl+Y" isLight={isLight}>
+            <button
+              type="button"
+              disabled={!canRedo}
+              aria-label="Redo"
+              onClick={onRedo}
+              className={`flex items-center justify-center w-8 h-8 rounded-md transition-all cursor-pointer ${
+                !canRedo
+                  ? 'opacity-30 cursor-not-allowed text-neutral-400'
+                  : inactiveBtnClass
+              }`}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 7v6h-6" />
+                <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13" />
+              </svg>
+            </button>
+          </ToolbarTooltip>
+        )}
 
         <div className={`h-5 w-[1px] mx-1 ${isLight ? 'bg-black/15' : 'bg-white/15'}`} />
 

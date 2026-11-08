@@ -99,5 +99,5 @@ export interface CloudinaryConfig {
 
 export type ThemeMode = 'dark' | 'light';
 
-export type ActiveTool = 'select' | 'pan' | 'pen' | 'text' | 'image' | 'video' | 'audio' | 'eraser' | 'shape' | 'connector';
+export type ActiveTool = 'select' | 'hand' | 'pan' | 'pen' | 'text' | 'image' | 'video' | 'audio' | 'eraser' | 'shape' | 'connector';
 

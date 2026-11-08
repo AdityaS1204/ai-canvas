@@ -20,7 +20,7 @@ import {
   saveCanvasState,
   INITIAL_CANVAS_STATE,
 } from '@/lib/storage';
-import { getStoredCloudinaryConfig } from '@/lib/cloudinary';
+import { getStoredCloudinaryConfig, DEFAULT_CLOUDINARY_CONFIG } from '@/lib/cloudinary';
 import { findNearestAnchor, getAnchorPosition } from '@/lib/connectorUtils';
 
 // Components
@@ -38,6 +38,11 @@ import CloudinaryConfigModal from '../modals/CloudinaryConfigModal';
 import JsonViewerModal from '../modals/JsonViewerModal';
 import ClearCanvasModal from '../modals/ClearCanvasModal';
 
+interface HistorySnapshot {
+  items: CanvasItem[];
+  strokes: DrawingStroke[];
+  connectors: CanvasConnector[];
+}
 
 export default function InfiniteCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -47,6 +52,8 @@ export default function InfiniteCanvas() {
   const itemsRef = useRef(items);
   itemsRef.current = items;
   const [strokes, setStrokes] = useState<DrawingStroke[]>([]);
+  const strokesRef = useRef(strokes);
+  strokesRef.current = strokes;
   const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [zoom, setZoom] = useState<number>(1);
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
@@ -54,7 +61,17 @@ export default function InfiniteCanvas() {
 
   // Connectors State
   const [connectors, setConnectors] = useState<CanvasConnector[]>(INITIAL_CANVAS_STATE.connectors || []);
+  const connectorsRef = useRef(connectors);
+  connectorsRef.current = connectors;
   const [selectedConnectorId, setSelectedConnectorId] = useState<string | null>(null);
+
+  // Full History Stack (Undo / Redo)
+  const undoStackRef = useRef<HistorySnapshot[]>([]);
+  const redoStackRef = useRef<HistorySnapshot[]>([]);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+
+  // Connecting Draft State
   const [connectingDraft, setConnectingDraft] = useState<{
     connectorId?: string;
     reconnectingEnd?: 'from' | 'to';
@@ -78,9 +95,6 @@ export default function InfiniteCanvas() {
     currentX: number;
     currentY: number;
   } | null>(null);
-  const lastClickTimeRef = useRef<number>(0);
-  const lastClickPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
-  const isPotentialPan = useRef(false);
   const dragItemStartPositions = useRef<Record<string, { x: number; y: number }>>({});
 
   // Active Tool & Pen/Shape color state
@@ -117,7 +131,7 @@ export default function InfiniteCanvas() {
   const [isCloudinaryModalOpen, setIsCloudinaryModalOpen] = useState(false);
   const [isJsonModalOpen, setIsJsonModalOpen] = useState(false);
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
-  const [cloudinaryConfig, setCloudinaryConfig] = useState<CloudinaryConfig>(getStoredCloudinaryConfig());
+  const [cloudinaryConfig, setCloudinaryConfig] = useState<CloudinaryConfig>(DEFAULT_CLOUDINARY_CONFIG);
 
   // Toast feedback
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -131,6 +145,7 @@ export default function InfiniteCanvas() {
 
   // Load initial state on mount
   useEffect(() => {
+    setCloudinaryConfig(getStoredCloudinaryConfig());
     const saved = loadSavedCanvasState();
     if (saved && saved.items) {
       setItems(saved.items);
@@ -180,6 +195,74 @@ export default function InfiniteCanvas() {
     return screenToWorld(cx, cy);
   }, [screenToWorld]);
 
+  // --- FULL CANVAS HISTORY (UNDO / REDO) ---
+  const pushHistorySnapshot = useCallback(() => {
+    const snapshot: HistorySnapshot = {
+      items: JSON.parse(JSON.stringify(itemsRef.current)),
+      strokes: JSON.parse(JSON.stringify(strokesRef.current)),
+      connectors: JSON.parse(JSON.stringify(connectorsRef.current)),
+    };
+    undoStackRef.current.push(snapshot);
+    if (undoStackRef.current.length > 50) {
+      undoStackRef.current.shift();
+    }
+    redoStackRef.current = [];
+    setCanUndo(true);
+    setCanRedo(false);
+  }, []);
+
+  // Comprehensive Undo (Ctrl+Z / Cmd+Z)
+  const handleUndo = useCallback(() => {
+    if (undoStackRef.current.length === 0) {
+      showToast('Nothing to undo');
+      return;
+    }
+
+    const currentSnapshot: HistorySnapshot = {
+      items: JSON.parse(JSON.stringify(itemsRef.current)),
+      strokes: JSON.parse(JSON.stringify(strokesRef.current)),
+      connectors: JSON.parse(JSON.stringify(connectorsRef.current)),
+    };
+    redoStackRef.current.push(currentSnapshot);
+
+    const prev = undoStackRef.current.pop()!;
+    setItems(prev.items);
+    setStrokes(prev.strokes);
+    setConnectors(prev.connectors);
+    setSelectedItemIds([]);
+    setSelectedConnectorId(null);
+
+    setCanUndo(undoStackRef.current.length > 0);
+    setCanRedo(true);
+    showToast('Undone (Ctrl+Z)');
+  }, []);
+
+  // Comprehensive Redo (Ctrl+Y / Cmd+Y / Ctrl+Shift+Z)
+  const handleRedo = useCallback(() => {
+    if (redoStackRef.current.length === 0) {
+      showToast('Nothing to redo');
+      return;
+    }
+
+    const currentSnapshot: HistorySnapshot = {
+      items: JSON.parse(JSON.stringify(itemsRef.current)),
+      strokes: JSON.parse(JSON.stringify(strokesRef.current)),
+      connectors: JSON.parse(JSON.stringify(connectorsRef.current)),
+    };
+    undoStackRef.current.push(currentSnapshot);
+
+    const next = redoStackRef.current.pop()!;
+    setItems(next.items);
+    setStrokes(next.strokes);
+    setConnectors(next.connectors);
+    setSelectedItemIds([]);
+    setSelectedConnectorId(null);
+
+    setCanUndo(true);
+    setCanRedo(redoStackRef.current.length > 0);
+    showToast('Redone (Ctrl+Y)');
+  }, []);
+
   // --- ITEM HANDLERS ---
   const handleUpdateItem = useCallback((id: string, updates: Partial<CanvasItem>) => {
     setItems((prev) =>
@@ -188,6 +271,7 @@ export default function InfiniteCanvas() {
   }, []);
 
   const handleRemoveItem = useCallback((id: string) => {
+    pushHistorySnapshot();
     setItems((prev) => {
       const removed = prev.find((item) => item.id === id);
       if (removed) {
@@ -204,11 +288,12 @@ export default function InfiniteCanvas() {
         return fromId !== id && toId !== id;
       })
     );
-  }, []);
+  }, [pushHistorySnapshot]);
 
   const handleRemoveSelectedItems = useCallback(() => {
     setSelectedItemIds((prevSelected) => {
       if (prevSelected.length === 0) return prevSelected;
+      pushHistorySnapshot();
       const count = prevSelected.length;
       setItems((itemsList) => itemsList.filter((item) => !prevSelected.includes(item.id)));
       setConnectors((prev) =>
@@ -221,7 +306,7 @@ export default function InfiniteCanvas() {
       showToast(count === 1 ? 'Removed item' : `Removed ${count} items`);
       return [];
     });
-  }, []);
+  }, [pushHistorySnapshot]);
 
   const handleSelectItem = useCallback((id: string, e?: React.MouseEvent) => {
     setSelectedConnectorId(null);
@@ -297,10 +382,11 @@ export default function InfiniteCanvas() {
   );
 
   const handleRemoveConnector = useCallback((id: string) => {
+    pushHistorySnapshot();
     setConnectors((prev) => prev.filter((c) => c.id !== id));
     setSelectedConnectorId((curr) => (curr === id ? null : curr));
     showToast('Connector removed');
-  }, []);
+  }, [pushHistorySnapshot]);
 
   // Track dragging connector across canvas and detect magnetic snapping to nearest anchor
   useEffect(() => {
@@ -330,6 +416,7 @@ export default function InfiniteCanvas() {
     const handleWindowPointerUp = () => {
       const target = snappedAnchorRef.current;
       if (target) {
+        pushHistorySnapshot();
         if (connectingDraft.connectorId && connectingDraft.reconnectingEnd) {
           const connId = connectingDraft.connectorId;
           const end = connectingDraft.reconnectingEnd;
@@ -371,10 +458,11 @@ export default function InfiniteCanvas() {
       window.removeEventListener('pointermove', handleWindowPointerMove);
       window.removeEventListener('pointerup', handleWindowPointerUp);
     };
-  }, [connectingDraft, screenToWorld]);
+  }, [connectingDraft, screenToWorld, pushHistorySnapshot]);
 
   // Multi-drag: snapshot start positions when drag starts on any item in selection
   const handleDragStartItem = useCallback((id: string) => {
+    pushHistorySnapshot();
     setSelectedItemIds((prev) => {
       const active = prev.includes(id) ? prev : [id];
       const starts: Record<string, { x: number; y: number }> = {};
@@ -386,7 +474,7 @@ export default function InfiniteCanvas() {
       dragItemStartPositions.current = starts;
       return active;
     });
-  }, []);
+  }, [pushHistorySnapshot]);
 
   // Multi-drag: move all selected items simultaneously by the same world delta
   const handleDragMoveItem = useCallback((id: string, deltaX: number, deltaY: number) => {
@@ -408,7 +496,8 @@ export default function InfiniteCanvas() {
 
   // Create a new Text Box at specified world coordinates
   const createTextBoxAt = useCallback((worldX: number, worldY: number) => {
-    const maxZ = Math.max(...items.map((i) => i.zIndex), 0) + 1;
+    pushHistorySnapshot();
+    const maxZ = Math.max(...itemsRef.current.map((i) => i.zIndex), 0) + 1;
     const newItem: CanvasItem = {
       id: `text-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       type: 'text',
@@ -424,7 +513,7 @@ export default function InfiniteCanvas() {
     setItems((prev) => [...prev, newItem]);
     setSelectedItemIds([newItem.id]);
     showToast('New text box opened');
-  }, [items]);
+  }, [pushHistorySnapshot]);
 
   // Click Text Icon in toolbar -> creates new text box at center of canvas
   const handleAddTextBoxFromToolbar = () => {
@@ -441,8 +530,9 @@ export default function InfiniteCanvas() {
     height: number;
     storageMeta?: StorageMeta;
   }) => {
+    pushHistorySnapshot();
     const center = getViewCenterWorld();
-    const maxZ = Math.max(...items.map((i) => i.zIndex), 0) + 1;
+    const maxZ = Math.max(...itemsRef.current.map((i) => i.zIndex), 0) + 1;
 
     const newItem: CanvasItem = {
       id: `${data.type}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
@@ -464,9 +554,10 @@ export default function InfiniteCanvas() {
   };
 
   // Add Shape Item (rectangle, circle, line, arrow)
-  const handleAddShape = (kind: ShapeKind) => {
+  const handleAddShape = (kind: ShapeKind, customX?: number, customY?: number) => {
+    pushHistorySnapshot();
     const center = getViewCenterWorld();
-    const maxZ = Math.max(...items.map((i) => i.zIndex), 0) + 1;
+    const maxZ = Math.max(...itemsRef.current.map((i) => i.zIndex), 0) + 1;
 
     let width = 200;
     let height = 140;
@@ -482,8 +573,8 @@ export default function InfiniteCanvas() {
       id: `shape-${kind}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       type: 'shape',
       shapeKind: kind,
-      x: Math.round(center.x - width / 2),
-      y: Math.round(center.y - height / 2),
+      x: customX !== undefined ? customX : Math.round(center.x - width / 2),
+      y: customY !== undefined ? customY : Math.round(center.y - height / 2),
       width,
       height,
       strokeColor: shapeColor,
@@ -624,8 +715,8 @@ export default function InfiniteCanvas() {
     const isMiddleButton = e.button === 1;
     const isLeftButton = e.button === 0;
 
-    // Middle button or Space+drag -> Pan canvas
-    if (isMiddleButton || isSpacePressed.current) {
+    // Hand tool active, Middle mouse button, or Spacebar held -> Pan canvas
+    if (activeTool === 'hand' || isMiddleButton || isSpacePressed.current) {
       isPanning.current = true;
       panStart.current = {
         clientX: e.clientX,
@@ -633,6 +724,11 @@ export default function InfiniteCanvas() {
         startPanX: pan.x,
         startPanY: pan.y,
       };
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      } catch {
+        // Safe fallback
+      }
       return;
     }
 
@@ -662,6 +758,7 @@ export default function InfiniteCanvas() {
 
     // Eraser tool active -> Click or start dragging to erase strokes
     if (activeTool === 'eraser' && isLeftButton) {
+      pushHistorySnapshot();
       try {
         e.currentTarget.setPointerCapture(e.pointerId);
       } catch {
@@ -677,65 +774,40 @@ export default function InfiniteCanvas() {
       return;
     }
 
-    // Select tool active -> Double click & drag activates marquee selection; single click drag pans
+    // Select tool active -> Dragging on empty canvas immediately activates marquee box selection!
     if (activeTool === 'select' && isLeftButton) {
       const clickedOnCard = (e.target as HTMLElement).closest('.group');
       if (!clickedOnCard) {
         setSelectedConnectorId(null);
-        const now = Date.now();
-        const timeSinceLastClick = now - lastClickTimeRef.current;
-        const distFromLastClick = Math.hypot(
-          e.clientX - lastClickPosRef.current.x,
-          e.clientY - lastClickPosRef.current.y
-        );
-
-        // Double click detected!
-        // User clicked and released, then pressed down again within 650ms and 60px
-        // OR user holds Shift key for immediate box selection
-        const isDoubleClick =
-          (timeSinceLastClick > 30 && timeSinceLastClick < 650 && distFromLastClick < 60) ||
-          e.shiftKey;
-
-        if (isDoubleClick) {
-          isMarqueeSelecting.current = true;
-          isPanning.current = false;
-          isPotentialPan.current = false;
-          lastClickTimeRef.current = 0; // consumed
-
-          try {
-            e.currentTarget.setPointerCapture(e.pointerId);
-          } catch {
-            // ignore
-          }
-
-          const worldX = (e.clientX - pan.x) / zoom;
-          const worldY = (e.clientY - pan.y) / zoom;
-          marqueeStartRef.current = { x: worldX, y: worldY };
-          setMarqueeBox({
-            startX: worldX,
-            startY: worldY,
-            currentX: worldX,
-            currentY: worldY,
-          });
-          return;
+        if (!e.shiftKey) {
+          setSelectedItemIds([]);
         }
 
-        // First click (or regular click): don't pan until mouse actually moves past 4px threshold!
-        isMarqueeSelecting.current = false;
+        isMarqueeSelecting.current = true;
         isPanning.current = false;
-        isPotentialPan.current = true;
-        panStart.current = {
-          clientX: e.clientX,
-          clientY: e.clientY,
-          startPanX: pan.x,
-          startPanY: pan.y,
-        };
+
+        try {
+          e.currentTarget.setPointerCapture(e.pointerId);
+        } catch {
+          // ignore
+        }
+
+        const worldX = (e.clientX - pan.x) / zoom;
+        const worldY = (e.clientY - pan.y) / zoom;
+        marqueeStartRef.current = { x: worldX, y: worldY };
+        setMarqueeBox({
+          startX: worldX,
+          startY: worldY,
+          currentX: worldX,
+          currentY: worldY,
+        });
+        return;
       }
     }
   };
 
   const handleCanvasPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    // 0. Marquee selection (from double click & drag)
+    // 0. Marquee selection (in Select tool)
     if (isMarqueeSelecting.current) {
       const worldX = (e.clientX - pan.x) / zoom;
       const worldY = (e.clientY - pan.y) / zoom;
@@ -772,21 +844,14 @@ export default function InfiniteCanvas() {
       return;
     }
 
-    // 1. Panning canvas (only after moving past 4px threshold so stationary clicks don't jiggle the canvas)
-    if (isPanning.current || isPotentialPan.current) {
+    // 1. Panning canvas (in Hand tool, Spacebar+drag, or Middle button)
+    if (isPanning.current) {
       const dx = e.clientX - panStart.current.clientX;
       const dy = e.clientY - panStart.current.clientY;
-      const dist = Math.hypot(dx, dy);
-
-      if (isPanning.current || dist > 4) {
-        isPanning.current = true;
-        // User dragged to pan -> cancel double click candidate
-        lastClickTimeRef.current = 0;
-        setPan({
-          x: panStart.current.startPanX + dx,
-          y: panStart.current.startPanY + dy,
-        });
-      }
+      setPan({
+        x: panStart.current.startPanX + dx,
+        y: panStart.current.startPanY + dy,
+      });
       return;
     }
 
@@ -831,21 +896,14 @@ export default function InfiniteCanvas() {
 
     if (isMarqueeSelecting.current) {
       isMarqueeSelecting.current = false;
+      const box = marqueeBox;
+      if (box && Math.abs(box.currentX - box.startX) < 4 && Math.abs(box.currentY - box.startY) < 4) {
+        setSelectedItemIds([]);
+        setSelectedConnectorId(null);
+      }
       setMarqueeBox(null);
-      // Keep selected items!
-    } else if (isPotentialPan.current && !isPanning.current) {
-      // Clean stationary click on empty canvas (user did NOT drag)!
-      // Record for double click detection
-      lastClickTimeRef.current = Date.now();
-      lastClickPosRef.current = { x: e.clientX, y: e.clientY };
-      // Clicking empty canvas deselects
-      setSelectedItemIds([]);
-    } else {
-      // User dragged/panned canvas, invalidate double click
-      lastClickTimeRef.current = 0;
     }
 
-    isPotentialPan.current = false;
     isPanning.current = false;
     isErasing.current = false;
 
@@ -856,6 +914,7 @@ export default function InfiniteCanvas() {
       currentStrokeRef.current = null;
       setCurrentStroke(null);
       if (finalStroke && finalStroke.points.length > 0) {
+        pushHistorySnapshot();
         setStrokes((prev) => [...prev, finalStroke]);
       }
     }
@@ -864,7 +923,6 @@ export default function InfiniteCanvas() {
   // Safety listener: if pointer is released anywhere outside canvas
   useEffect(() => {
     const handleGlobalPointerUp = () => {
-      isPotentialPan.current = false;
       isPanning.current = false;
       isErasing.current = false;
       if (isMarqueeSelecting.current) {
@@ -877,13 +935,14 @@ export default function InfiniteCanvas() {
         currentStrokeRef.current = null;
         setCurrentStroke(null);
         if (finalStroke && finalStroke.points.length > 0) {
+          pushHistorySnapshot();
           setStrokes((prev) => [...prev, finalStroke]);
         }
       }
     };
     window.addEventListener('pointerup', handleGlobalPointerUp);
     return () => window.removeEventListener('pointerup', handleGlobalPointerUp);
-  }, []);
+  }, [pushHistorySnapshot]);
 
   // Zoom buttons
   const handleZoomIn = () => {
@@ -918,30 +977,21 @@ export default function InfiniteCanvas() {
     setZoom(1);
   };
 
-  // Keyboard shortcuts (Spacebar for pan, V for select, P for pen, Delete to remove selected)
+  // Keyboard shortcuts (Cmd+K / Ctrl+K for Command Bar, Ctrl+Z/Y for Undo/Redo, Spacebar for pan, V for select, P for pen, Delete to remove selected)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-        return;
-      }
       if (e.code === 'Space') {
         isSpacePressed.current = true;
       } else if (e.key === 'v' || e.key === 'V') {
         setActiveTool('select');
+      } else if (e.key === 'h' || e.key === 'H') {
+        setActiveTool('hand');
       } else if (e.key === 'p' || e.key === 'P') {
         setActiveTool('pen');
       } else if (e.key === 'e' || e.key === 'E') {
         setActiveTool('eraser');
       } else if (e.key === 's' || e.key === 'S') {
         setActiveTool('shape');
-      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
-        // Undo last drawn stroke
-        e.preventDefault();
-        setStrokes((prev) => {
-          if (prev.length === 0) return prev;
-          showToast('Undid drawing');
-          return prev.slice(0, -1);
-        });
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         if (selectedConnectorId) {
           handleRemoveConnector(selectedConnectorId);
@@ -954,6 +1004,9 @@ export default function InfiniteCanvas() {
     const handleKeyUp = (e: KeyboardEvent) => {
       if (e.code === 'Space') {
         isSpacePressed.current = false;
+        if (isPanning.current && activeTool !== 'hand') {
+          isPanning.current = false;
+        }
       }
     };
 
@@ -963,7 +1016,7 @@ export default function InfiniteCanvas() {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [selectedItemIds, selectedConnectorId, handleRemoveSelectedItems, handleRemoveConnector]);
+  }, [selectedItemIds, selectedConnectorId, handleRemoveSelectedItems, handleRemoveConnector, handleUndo, handleRedo]);
 
   return (
     <CanvasFrame
@@ -998,10 +1051,15 @@ export default function InfiniteCanvas() {
             onOpenCloudinaryModal={() => setIsCloudinaryModalOpen(true)}
             onAddShape={handleAddShape}
             onClearCanvas={() => {
+              pushHistorySnapshot();
               setItems([]);
               setConnectors([]);
             }}
             onDimensionsChange={setToolbarDims}
+            onUndo={handleUndo}
+            onRedo={handleRedo}
+            canUndo={canUndo}
+            canRedo={canRedo}
           />
 
           {/* Media Upload Modal */}
@@ -1034,6 +1092,7 @@ export default function InfiniteCanvas() {
             connectors={connectors}
             viewport={{ x: pan.x, y: pan.y, scale: zoom }}
             onImportState={(newState) => {
+              pushHistorySnapshot();
               setItems(newState.items);
               setStrokes(newState.strokes || []);
               setConnectors(newState.connectors || []);
@@ -1051,6 +1110,7 @@ export default function InfiniteCanvas() {
             onClose={() => setIsClearModalOpen(false)}
             theme={theme}
             onConfirmClear={() => {
+              pushHistorySnapshot();
               setItems([]);
               setStrokes([]);
               setConnectors([]);
@@ -1104,7 +1164,11 @@ export default function InfiniteCanvas() {
         className={`relative w-full h-full overflow-hidden select-none touch-none transition-colors duration-200 ${
           theme === 'light' ? 'bg-[#f7f4f4]' : 'bg-[#221b1b]'
         } ${
-          activeTool === 'pen' || activeTool === 'eraser'
+          activeTool === 'hand'
+            ? isPanning.current
+              ? 'cursor-grabbing'
+              : 'cursor-grab'
+            : activeTool === 'pen' || activeTool === 'eraser'
             ? 'cursor-crosshair'
             : isMarqueeSelecting.current
             ? 'cursor-crosshair'
@@ -1196,7 +1260,7 @@ export default function InfiniteCanvas() {
               zoom,
               isSelected,
               theme,
-              isPenActive: activeTool === 'pen' || activeTool === 'eraser',
+              isPenActive: activeTool === 'pen' || activeTool === 'eraser' || activeTool === 'hand',
               onSelect: handleSelectItem,
               onUpdate: handleUpdateItem,
               onDragStart: handleDragStartItem,

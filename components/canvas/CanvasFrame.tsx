@@ -306,7 +306,39 @@ export default function CanvasFrame({
           transition={{ duration: isOpen ? 0.3 : 0.15, delay: isOpen ? 0.1 : 0 }}
           className="p-1.5 flex flex-col gap-0.5"
         >
-          {/* Item 1: Cloudinary Connect */}
+          {/* Item 1: Theme Toggle Option */}
+          <button
+            type="button"
+            onClick={() => {
+              if (onToggleTheme) onToggleTheme();
+            }}
+            className={`w-full h-8 px-2.5 rounded-md flex items-center justify-between text-xs font-medium transition-colors duration-150 cursor-pointer ${
+              isLight
+                ? 'text-[#2d2424] hover:bg-black/5 active:bg-black/10'
+                : 'text-white/85 hover:text-white hover:bg-white/10 active:bg-white/15'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              {isLight ? (
+                <Sun size={14} className="text-amber-500" />
+              ) : (
+                <Moon size={14} className="text-blue-400" />
+              )}
+              <span>{isLight ? 'Light Theme' : 'Dark Theme'}</span>
+            </div>
+            {/* Animated toggle pill */}
+            <div
+              className={`w-7 h-4 rounded-full p-0.5 transition-colors duration-200 flex items-center ${
+                isLight ? 'bg-blue-600 justify-end' : 'bg-black/40 justify-start'
+              }`}
+            >
+              <div className="w-3 h-3 rounded-full bg-white shadow-sm" />
+            </div>
+          </button>
+
+          <div className={`h-[1px] w-full my-1 ${isLight ? 'bg-black/10' : 'bg-white/10'}`} />
+
+          {/* Item 2: Cloudinary Connect */}
           <button
             type="button"
             onClick={() => {
@@ -371,37 +403,7 @@ export default function CanvasFrame({
             <span>Reset View (100%)</span>
           </button>
 
-          {/* Item 4: Theme Toggle Option */}
-          <button
-            type="button"
-            onClick={() => {
-              if (onToggleTheme) onToggleTheme();
-            }}
-            className={`w-full h-8 px-2.5 rounded-md flex items-center justify-between text-xs font-medium transition-colors duration-150 cursor-pointer ${
-              isLight
-                ? 'text-[#2d2424] hover:bg-black/5 active:bg-black/10'
-                : 'text-white/85 hover:text-white hover:bg-white/10 active:bg-white/15'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              {isLight ? (
-                <Sun size={14} className="text-amber-500" />
-              ) : (
-                <Moon size={14} className="text-blue-400" />
-              )}
-              <span>{isLight ? 'Light Theme' : 'Dark Theme'}</span>
-            </div>
-            {/* Animated toggle pill */}
-            <div
-              className={`w-7 h-4 rounded-full p-0.5 transition-colors duration-200 flex items-center ${
-                isLight ? 'bg-blue-600 justify-end' : 'bg-black/40 justify-start'
-              }`}
-            >
-              <div className="w-3 h-3 rounded-full bg-white shadow-sm" />
-            </div>
-          </button>
-
-          {/* Item 5: Clear Canvas */}
+          {/* Item 4: Clear Canvas */}
           <button
             type="button"
             onClick={() => {

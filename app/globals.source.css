@@ -70,3 +70,14 @@ textarea::-webkit-scrollbar-thumb:hover {
   background-size: 28px 28px;
   background-image: radial-gradient(circle, rgba(0, 0, 0, 0.14) 1.2px, transparent 1.2px);
 }
+
+/* High-DPI crisp Hand Tool cursors matching Figma / Miro */
+.cursor-grab {
+  cursor: grab !important;
+  cursor: -webkit-grab !important;
+}
+
+.cursor-grabbing {
+  cursor: grabbing !important;
+  cursor: -webkit-grabbing !important;
+}
