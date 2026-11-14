@@ -29,7 +29,7 @@ import ImageItem from './ImageItem';
 import VideoItem from './VideoItem';
 import AudioItem from './AudioItem';
 import ShapeItem from './ShapeItem';
-import DrawingCanvas from './DrawingCanvas';
+import DrawingCanvas, { getStrokeBounds } from './DrawingCanvas';
 import ConnectorLayer from './ConnectorLayer';
 import CanvasFrame from './CanvasFrame';
 import FloatingToolbar from '../toolbar/FloatingToolbar';
@@ -37,6 +37,7 @@ import MediaUploadModal from '../modals/MediaUploadModal';
 import CloudinaryConfigModal from '../modals/CloudinaryConfigModal';
 import JsonViewerModal from '../modals/JsonViewerModal';
 import ClearCanvasModal from '../modals/ClearCanvasModal';
+
 
 interface HistorySnapshot {
   items: CanvasItem[];
@@ -57,6 +58,11 @@ export default function InfiniteCanvas() {
   const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [zoom, setZoom] = useState<number>(1);
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
+  const selectedItemIdsRef = useRef(selectedItemIds);
+  selectedItemIdsRef.current = selectedItemIds;
+  const [selectedStrokeIds, setSelectedStrokeIds] = useState<string[]>([]);
+  const selectedStrokeIdsRef = useRef(selectedStrokeIds);
+  selectedStrokeIdsRef.current = selectedStrokeIds;
   const selectedItemId = selectedItemIds.length === 1 ? selectedItemIds[0] : null;
 
   // Connectors State
@@ -70,6 +76,8 @@ export default function InfiniteCanvas() {
   const redoStackRef = useRef<HistorySnapshot[]>([]);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
+
+
 
   // Connecting Draft State
   const [connectingDraft, setConnectingDraft] = useState<{
@@ -96,6 +104,7 @@ export default function InfiniteCanvas() {
     currentY: number;
   } | null>(null);
   const dragItemStartPositions = useRef<Record<string, { x: number; y: number }>>({});
+  const dragStrokeStartPositions = useRef<Record<string, DrawingPoint[]>>({});
 
   // Active Tool & Pen/Shape color state
   const [activeTool, setActiveTool] = useState<ActiveTool>('select');
@@ -230,6 +239,7 @@ export default function InfiniteCanvas() {
     setStrokes(prev.strokes);
     setConnectors(prev.connectors);
     setSelectedItemIds([]);
+    setSelectedStrokeIds([]);
     setSelectedConnectorId(null);
 
     setCanUndo(undoStackRef.current.length > 0);
@@ -256,12 +266,15 @@ export default function InfiniteCanvas() {
     setStrokes(next.strokes);
     setConnectors(next.connectors);
     setSelectedItemIds([]);
+    setSelectedStrokeIds([]);
     setSelectedConnectorId(null);
 
     setCanUndo(true);
     setCanRedo(redoStackRef.current.length > 0);
     showToast('Redone (Ctrl+Y)');
   }, []);
+
+
 
   // --- ITEM HANDLERS ---
   const handleUpdateItem = useCallback((id: string, updates: Partial<CanvasItem>) => {
@@ -291,26 +304,39 @@ export default function InfiniteCanvas() {
   }, [pushHistorySnapshot]);
 
   const handleRemoveSelectedItems = useCallback(() => {
-    setSelectedItemIds((prevSelected) => {
-      if (prevSelected.length === 0) return prevSelected;
-      pushHistorySnapshot();
-      const count = prevSelected.length;
-      setItems((itemsList) => itemsList.filter((item) => !prevSelected.includes(item.id)));
+    const itemIds = selectedItemIdsRef.current;
+    const strokeIds = selectedStrokeIdsRef.current;
+    if (itemIds.length === 0 && strokeIds.length === 0) return;
+
+    pushHistorySnapshot();
+    const count = itemIds.length + strokeIds.length;
+
+    if (itemIds.length > 0) {
+      setItems((itemsList) => itemsList.filter((item) => !itemIds.includes(item.id)));
       setConnectors((prev) =>
         prev.filter((c) => {
           const fromId = typeof c.from === 'object' && 'itemId' in c.from ? c.from.itemId : null;
           const toId = typeof c.to === 'object' && 'itemId' in c.to ? c.to.itemId : null;
-          return !prevSelected.includes(fromId || '') && !prevSelected.includes(toId || '');
+          return !itemIds.includes(fromId || '') && !itemIds.includes(toId || '');
         })
       );
-      showToast(count === 1 ? 'Removed item' : `Removed ${count} items`);
-      return [];
-    });
+      setSelectedItemIds([]);
+    }
+
+    if (strokeIds.length > 0) {
+      setStrokes((prev) => prev.filter((s) => !strokeIds.includes(s.id)));
+      setSelectedStrokeIds([]);
+    }
+
+    showToast(count === 1 ? 'Removed item' : `Removed ${count} items`);
   }, [pushHistorySnapshot]);
 
   const handleSelectItem = useCallback((id: string, e?: React.MouseEvent) => {
     setSelectedConnectorId(null);
     const isShift = e?.shiftKey;
+    if (!isShift) {
+      setSelectedStrokeIds([]);
+    }
     setSelectedItemIds((prev) => {
       if (isShift) {
         return prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id];
@@ -474,6 +500,15 @@ export default function InfiniteCanvas() {
       dragItemStartPositions.current = starts;
       return active;
     });
+
+    // Also record start positions for any selected strokes
+    const strokeStarts: Record<string, DrawingPoint[]> = {};
+    strokesRef.current.forEach((st) => {
+      if (selectedStrokeIdsRef.current.includes(st.id)) {
+        strokeStarts[st.id] = st.points.map((p) => ({ x: p.x, y: p.y }));
+      }
+    });
+    dragStrokeStartPositions.current = strokeStarts;
   }, [pushHistorySnapshot]);
 
   // Multi-drag: move all selected items simultaneously by the same world delta
@@ -492,7 +527,133 @@ export default function InfiniteCanvas() {
         return it;
       })
     );
+
+    // Also move any selected strokes simultaneously
+    const strokeStarts = dragStrokeStartPositions.current;
+    if (Object.keys(strokeStarts).length > 0) {
+      setStrokes((prev) =>
+        prev.map((st) => {
+          const orig = strokeStarts[st.id];
+          if (orig) {
+            return {
+              ...st,
+              points: orig.map((p) => ({
+                x: Number((p.x + deltaX).toFixed(1)),
+                y: Number((p.y + deltaY).toFixed(1)),
+              })),
+            };
+          }
+          return st;
+        })
+      );
+    }
   }, []);
+
+  // Multi-drag & selection for pen-drawn strokes
+  const handleStrokePointerDown = useCallback(
+    (strokeId: string, e: React.PointerEvent) => {
+      if (e.button !== 0) return; // Only primary mouse button
+      setSelectedConnectorId(null);
+
+      const isShift = e.shiftKey;
+      let activeStrokeIds = selectedStrokeIdsRef.current;
+      let activeItemIds = selectedItemIdsRef.current;
+
+      if (isShift) {
+        if (activeStrokeIds.includes(strokeId)) {
+          activeStrokeIds = activeStrokeIds.filter((id) => id !== strokeId);
+        } else {
+          activeStrokeIds = [...activeStrokeIds, strokeId];
+        }
+        setSelectedStrokeIds(activeStrokeIds);
+      } else {
+        if (!activeStrokeIds.includes(strokeId)) {
+          activeStrokeIds = [strokeId];
+          setSelectedStrokeIds([strokeId]);
+          setSelectedItemIds([]);
+          activeItemIds = [];
+        }
+      }
+
+      // Snapshot starting positions of selected items and strokes
+      const startClientX = e.clientX;
+      const startClientY = e.clientY;
+      let hasPushedHistory = false;
+
+      const itemStarts: Record<string, { x: number; y: number }> = {};
+      itemsRef.current.forEach((it) => {
+        if (activeItemIds.includes(it.id)) {
+          itemStarts[it.id] = { x: it.x, y: it.y };
+        }
+      });
+
+      const strokeStarts: Record<string, DrawingPoint[]> = {};
+      strokesRef.current.forEach((st) => {
+        if (activeStrokeIds.includes(st.id)) {
+          strokeStarts[st.id] = st.points.map((p) => ({ x: p.x, y: p.y }));
+        }
+      });
+
+      const handlePointerMove = (moveEvt: PointerEvent) => {
+        const rawDx = moveEvt.clientX - startClientX;
+        const rawDy = moveEvt.clientY - startClientY;
+
+        if (!hasPushedHistory && (Math.abs(rawDx) > 3 || Math.abs(rawDy) > 3)) {
+          hasPushedHistory = true;
+          pushHistorySnapshot();
+        }
+        if (!hasPushedHistory) return;
+
+        const deltaX = rawDx / zoom;
+        const deltaY = rawDy / zoom;
+
+        // Move items
+        if (Object.keys(itemStarts).length > 0) {
+          setItems((prev) =>
+            prev.map((it) => {
+              const start = itemStarts[it.id];
+              if (start) {
+                return {
+                  ...it,
+                  x: Math.round(start.x + deltaX),
+                  y: Math.round(start.y + deltaY),
+                };
+              }
+              return it;
+            })
+          );
+        }
+
+        // Move strokes
+        if (Object.keys(strokeStarts).length > 0) {
+          setStrokes((prev) =>
+            prev.map((st) => {
+              const orig = strokeStarts[st.id];
+              if (orig) {
+                return {
+                  ...st,
+                  points: orig.map((p) => ({
+                    x: Number((p.x + deltaX).toFixed(1)),
+                    y: Number((p.y + deltaY).toFixed(1)),
+                  })),
+                };
+              }
+              return st;
+            })
+          );
+        }
+      };
+
+      const handlePointerUp = () => {
+        window.removeEventListener('pointermove', handlePointerMove);
+        window.removeEventListener('pointerup', handlePointerUp);
+      };
+
+      window.addEventListener('pointermove', handlePointerMove);
+      window.addEventListener('pointerup', handlePointerUp);
+    },
+    [zoom, pushHistorySnapshot]
+  );
 
   // Create a new Text Box at specified world coordinates
   const createTextBoxAt = useCallback((worldX: number, worldY: number) => {
@@ -753,6 +914,7 @@ export default function InfiniteCanvas() {
       currentStrokeRef.current = newStroke;
       setCurrentStroke(newStroke);
       setSelectedItemIds([]);
+      setSelectedStrokeIds([]);
       return;
     }
 
@@ -771,6 +933,7 @@ export default function InfiniteCanvas() {
       };
       eraseStrokesAt(pt);
       setSelectedItemIds([]);
+      setSelectedStrokeIds([]);
       return;
     }
 
@@ -781,6 +944,7 @@ export default function InfiniteCanvas() {
         setSelectedConnectorId(null);
         if (!e.shiftKey) {
           setSelectedItemIds([]);
+          setSelectedStrokeIds([]);
         }
 
         isMarqueeSelecting.current = true;
@@ -839,7 +1003,21 @@ export default function InfiniteCanvas() {
             );
           })
           .map((item) => item.id);
+
+        const strokeMatches = strokesRef.current
+          .filter((stroke) => {
+            const b = getStrokeBounds(stroke.points, stroke.width);
+            return (
+              b.minX <= maxX &&
+              b.maxX >= minX &&
+              b.minY <= maxY &&
+              b.maxY >= minY
+            );
+          })
+          .map((stroke) => stroke.id);
+
         setSelectedItemIds(matches);
+        setSelectedStrokeIds(strokeMatches);
       }
       return;
     }
@@ -899,6 +1077,7 @@ export default function InfiniteCanvas() {
       const box = marqueeBox;
       if (box && Math.abs(box.currentX - box.startX) < 4 && Math.abs(box.currentY - box.startY) < 4) {
         setSelectedItemIds([]);
+        setSelectedStrokeIds([]);
         setSelectedConnectorId(null);
       }
       setMarqueeBox(null);
@@ -977,9 +1156,33 @@ export default function InfiniteCanvas() {
     setZoom(1);
   };
 
-  // Keyboard shortcuts (Cmd+K / Ctrl+K for Command Bar, Ctrl+Z/Y for Undo/Redo, Spacebar for pan, V for select, P for pen, Delete to remove selected)
+  // Keyboard shortcuts (Ctrl+K for AI Agent, Ctrl+Z/Y for Undo/Redo, Spacebar for pan, V for select, H for hand, P for pen, Delete to remove selected)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+
+
+      // Undo shortcut: Ctrl+Z or Cmd+Z (without Shift)
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z') && !e.shiftKey) {
+        e.preventDefault();
+        handleUndo();
+        return;
+      }
+
+      // Redo shortcut: Ctrl+Y or Cmd+Y, or Ctrl+Shift+Z / Cmd+Shift+Z
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        (e.key === 'y' || e.key === 'Y' || ((e.key === 'z' || e.key === 'Z') && e.shiftKey))
+      ) {
+        e.preventDefault();
+        handleRedo();
+        return;
+      }
+
+      // If user is typing in an input or textarea, don't trigger canvas tool keys
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
       if (e.code === 'Space') {
         isSpacePressed.current = true;
       } else if (e.key === 'v' || e.key === 'V') {
@@ -995,7 +1198,7 @@ export default function InfiniteCanvas() {
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         if (selectedConnectorId) {
           handleRemoveConnector(selectedConnectorId);
-        } else if (selectedItemIds.length > 0) {
+        } else if (selectedItemIds.length > 0 || selectedStrokeIds.length > 0) {
           handleRemoveSelectedItems();
         }
       }
@@ -1016,7 +1219,7 @@ export default function InfiniteCanvas() {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [selectedItemIds, selectedConnectorId, handleRemoveSelectedItems, handleRemoveConnector, handleUndo, handleRedo]);
+  }, [selectedItemIds, selectedStrokeIds, selectedConnectorId, handleRemoveSelectedItems, handleRemoveConnector, handleUndo, handleRedo, activeTool]);
 
   return (
     <CanvasFrame
@@ -1096,6 +1299,8 @@ export default function InfiniteCanvas() {
               setItems(newState.items);
               setStrokes(newState.strokes || []);
               setConnectors(newState.connectors || []);
+              setSelectedItemIds([]);
+              setSelectedStrokeIds([]);
               if (newState.viewport) {
                 setPan({ x: newState.viewport.x, y: newState.viewport.y });
                 setZoom(newState.viewport.scale || 1);
@@ -1114,6 +1319,8 @@ export default function InfiniteCanvas() {
               setItems([]);
               setStrokes([]);
               setConnectors([]);
+              setSelectedItemIds([]);
+              setSelectedStrokeIds([]);
               showToast('Canvas cleared');
             }}
           />
@@ -1132,7 +1339,7 @@ export default function InfiniteCanvas() {
           )}
 
           {/* Multi-selection pill badge */}
-          {selectedItemIds.length > 1 && !marqueeBox && (
+          {selectedItemIds.length + selectedStrokeIds.length > 1 && !marqueeBox && (
             <div
               className={`fixed top-5 left-1/2 -translate-x-1/2 z-40 px-3.5 py-1.5 rounded-full border shadow-2xl backdrop-blur-md text-xs font-medium flex items-center gap-2 animate-in fade-in slide-in-from-top-2 duration-150 ${
                 theme === 'light'
@@ -1141,12 +1348,15 @@ export default function InfiniteCanvas() {
               }`}
             >
               <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-              <span>{selectedItemIds.length} items selected</span>
+              <span>{selectedItemIds.length + selectedStrokeIds.length} items selected</span>
               <span className="opacity-40">•</span>
               <span className="opacity-75 text-[11px]">Drag any to move together</span>
               <button
                 type="button"
-                onClick={() => setSelectedItemIds([])}
+                onClick={() => {
+                  setSelectedItemIds([]);
+                  setSelectedStrokeIds([]);
+                }}
                 className="ml-1 text-[11px] underline opacity-70 hover:opacity-100 cursor-pointer"
               >
                 Deselect
@@ -1296,6 +1506,9 @@ export default function InfiniteCanvas() {
           currentStroke={currentStroke}
           zoom={zoom}
           pan={pan}
+          activeTool={activeTool}
+          selectedStrokeIds={selectedStrokeIds}
+          onStrokePointerDown={handleStrokePointerDown}
         />
       </div>
     </CanvasFrame>
