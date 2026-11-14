@@ -1,8 +1,23 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
+const getBaseUrl = () => {
+  const envUrl =
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.VERCEL_PROJECT_PRODUCTION_URL ||
+    process.env.VERCEL_URL;
+
+  if (envUrl) {
+    return envUrl.startsWith("http://") || envUrl.startsWith("https://")
+      ? envUrl
+      : `https://${envUrl}`;
+  }
+
+  return "http://localhost:3000";
+};
+
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://ai-canvas.vercel.app"),
+  metadataBase: new URL(getBaseUrl()),
   title: "AI Canvas - Infinite Creative Board",
   description: "An infinite canvas to render images, videos, audio, vector shapes, drawings, and notes.",
   icons: {
