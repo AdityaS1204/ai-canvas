@@ -158,6 +158,8 @@ export default function CanvasItemCard({
     };
   }, [isDragging, isResizing, item.id, onUpdate, onDragMove, zoom]);
 
+  const isMedia = item.type === 'image' || item.type === 'video';
+
   return (
     <div
       ref={cardRef}
@@ -178,58 +180,122 @@ export default function CanvasItemCard({
       /* pointer-events-auto ensures full interaction; disabled during pen drawing to allow uninterrupted sketching */
       className={`group absolute ${
         isPenActive ? 'pointer-events-none' : 'pointer-events-auto'
-      } select-none rounded-2xl flex flex-col p-1.5 pt-1 transition-all duration-150 ${
-        isDragging
-          ? isLight
-            ? 'cursor-grabbing ring-2 ring-black/40 shadow-2xl shadow-black/15 opacity-95'
-            : 'cursor-grabbing ring-2 ring-neutral-400 shadow-2xl shadow-black/80 opacity-95'
-          : 'cursor-grab'
-      } ${
-        isSelected
-          ? isLight
-            ? 'ring-2 ring-blue-500 shadow-2xl shadow-black/15'
-            : 'ring-2 ring-neutral-300 shadow-2xl shadow-black/80'
-          : isLight
-          ? 'ring-1 ring-black/10 hover:ring-black/25 shadow-lg shadow-black/5'
-          : 'ring-1 ring-white/10 hover:ring-white/25 shadow-xl shadow-black/80'
-      } ${isLight ? 'bg-[#ffffff]' : 'bg-[#282626]'}`}
+      } select-none flex flex-col transition-all duration-150 ${
+        isMedia
+          ? `rounded-[22px] p-2 border-[3.5px] ${
+              isSelected
+                ? 'border-blue-500 shadow-2xl shadow-blue-500/25 ring-2 ring-blue-500/30'
+                : isDragging
+                ? 'border-blue-400 opacity-95 shadow-2xl shadow-black/80'
+                : isLight
+                ? 'border-[#ded7d7] hover:border-[#c5bebe] bg-[#f5f0f0] shadow-md shadow-black/5'
+                : 'border-[#2d2727] hover:border-[#3d3535] bg-[#181313] shadow-xl shadow-black/80'
+            } cursor-grab active:cursor-grabbing`
+          : `rounded-2xl p-1.5 pt-1 ${
+              isDragging
+                ? isLight
+                  ? 'cursor-grabbing ring-2 ring-black/40 shadow-2xl shadow-black/15 opacity-95'
+                  : 'cursor-grabbing ring-2 ring-neutral-400 shadow-2xl shadow-black/80 opacity-95'
+                : 'cursor-grab'
+            } ${
+              isSelected
+                ? isLight
+                  ? 'ring-2 ring-blue-500 shadow-2xl shadow-black/15'
+                  : 'ring-2 ring-neutral-300 shadow-2xl shadow-black/80'
+                : isLight
+                ? 'ring-1 ring-black/10 hover:ring-black/25 shadow-lg shadow-black/5'
+                : 'ring-1 ring-white/10 hover:ring-white/25 shadow-xl shadow-black/80'
+            } ${isLight ? 'bg-[#ffffff]' : 'bg-[#282626]'}`
+      }`}
     >
-      {/* Top Header Bar matching reference image with close icon on top right */}
-      <div
-        className="w-full h-7 flex items-center justify-between px-1.5 cursor-grab active:cursor-grabbing select-none"
-      >
-        {/* Subtle drag grip handle */}
-        <div className="flex items-center gap-1 opacity-20 group-hover:opacity-60 transition-opacity">
-          <div className={`w-1.5 h-1.5 rounded-full ${isLight ? 'bg-black' : 'bg-white'}`} />
-          <div className={`w-1.5 h-1.5 rounded-full ${isLight ? 'bg-black' : 'bg-white'}`} />
-        </div>
+      {/* For Media: Pure frameless presentation with NO external header. Floating info and close button only on hover! */}
+      {isMedia ? (
+        <>
+          {/* Inner Content Area */}
+          <div className="relative flex-1 w-full h-full rounded-[14px] overflow-hidden flex flex-col pointer-events-auto">
+            {children}
+          </div>
 
-        {/* HoneyIcons Close icon on top-right */}
-        <button
-          type="button"
-          title="Remove box"
-          onClick={(e) => {
-            e.stopPropagation();
-            onRemove(item.id);
-          }}
-          className={`transition-opacity p-0.5 cursor-pointer pointer-events-auto ${
-            isLight ? 'text-black/60 hover:text-black' : 'text-white/80 hover:text-white'
-          }`}
-        >
-          <Close size={15} />
-        </button>
-      </div>
+          {/* Floating Hover Overlay: Title, source, metadata on left, Close button on right */}
+          <div className="absolute inset-0 p-3 flex flex-col justify-between pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-30">
+            <div className="flex items-start justify-between w-full gap-2">
+              <div className="flex flex-col gap-1 max-w-[75%]">
+                {item.title && (
+                  <div className="px-2.5 py-1 rounded-lg bg-black/80 backdrop-blur-md border border-white/15 text-[11px] font-medium text-white truncate shadow-lg">
+                    {item.title}
+                  </div>
+                )}
+                <div className="flex items-center gap-1.5 self-start px-2 py-0.5 rounded-md bg-black/75 backdrop-blur-md border border-white/15 text-[10px] text-white/80">
+                  <span className="text-blue-400 font-medium capitalize">
+                    {item.storageMeta?.provider || (item.type === 'video' ? 'Video' : 'Image')}
+                  </span>
+                  {item.storageMeta?.width && item.storageMeta?.height && (
+                    <span className="text-white/50">
+                      • {item.storageMeta.width}×{item.storageMeta.height}
+                    </span>
+                  )}
+                  {item.storageMeta?.duration && (
+                    <span className="text-white/50">
+                      • {Math.round(item.storageMeta.duration)}s
+                    </span>
+                  )}
+                </div>
+              </div>
 
-      {/* Inner Content Area */}
-      <div className="relative flex-1 w-full rounded-xl overflow-hidden flex flex-col pointer-events-auto">
-        {children}
-      </div>
+              <button
+                type="button"
+                title="Remove"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRemove(item.id);
+                }}
+                className="w-7 h-7 rounded-full bg-black/80 hover:bg-black text-white/90 hover:text-white border border-white/15 backdrop-blur-md flex items-center justify-center transition-transform hover:scale-110 shadow-lg cursor-pointer pointer-events-auto"
+              >
+                <Close size={13} />
+              </button>
+            </div>
+          </div>
+        </>
+      ) : (
+        <>
+          {/* Top Header Bar for text/shape/audio cards */}
+          <div className="w-full h-7 flex items-center justify-between px-1.5 cursor-grab active:cursor-grabbing select-none">
+            {/* Subtle drag grip handle */}
+            <div className="flex items-center gap-1 opacity-20 group-hover:opacity-60 transition-opacity">
+              <div className={`w-1.5 h-1.5 rounded-full ${isLight ? 'bg-black' : 'bg-white'}`} />
+              <div className={`w-1.5 h-1.5 rounded-full ${isLight ? 'bg-black' : 'bg-white'}`} />
+            </div>
+
+            {/* HoneyIcons Close icon on top-right */}
+            <button
+              type="button"
+              title="Remove box"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemove(item.id);
+              }}
+              className={`transition-opacity p-0.5 cursor-pointer pointer-events-auto ${
+                isLight ? 'text-black/60 hover:text-black' : 'text-white/80 hover:text-white'
+              }`}
+            >
+              <Close size={15} />
+            </button>
+          </div>
+
+          {/* Inner Content Area */}
+          <div className="relative flex-1 w-full rounded-xl overflow-hidden flex flex-col pointer-events-auto">
+            {children}
+          </div>
+        </>
+      )}
 
       {/* Resize Handle (Bottom-Right Corner) */}
       <div
         onMouseDown={handleResizeStart}
         title="Drag to resize"
-        className="resize-handle absolute bottom-1 right-1 w-4 h-4 cursor-nwse-resize flex items-center justify-center opacity-30 hover:opacity-100 transition-opacity pointer-events-auto"
+        className={`resize-handle absolute bottom-2 right-2 w-4 h-4 cursor-nwse-resize flex items-center justify-center transition-opacity pointer-events-auto z-40 ${
+          isMedia ? 'opacity-0 group-hover:opacity-60 hover:!opacity-100' : 'opacity-30 hover:opacity-100'
+        }`}
       >
         <svg
           width="7"

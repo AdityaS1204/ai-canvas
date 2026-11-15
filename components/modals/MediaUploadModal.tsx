@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { ItemType, StorageMeta } from '@/types/canvas';
 import {
   getStoredCloudinaryConfig,
@@ -8,7 +8,7 @@ import {
   SAMPLE_CLOUDINARY_MEDIA,
 } from '@/lib/cloudinary';
 import { parseVideoUrl } from '@/lib/video-parser';
-import { Close, CloudUpload, Image as ImageIcon, FileVideo, MusicNote } from '@honeyicons/react';
+import { Close, CloudUpload, Link as LinkIcon, Image as ImageIcon } from '@honeyicons/react';
 
 interface MediaUploadModalProps {
   isOpen: boolean;
@@ -30,44 +30,67 @@ export default function MediaUploadModal({
   onClose,
   mediaType,
   onAddMedia,
-  onOpenCloudinaryConfig,
+  onOpenCloudinaryConfig: _onOpenCloudinaryConfig,
 }: MediaUploadModalProps) {
-  const [activeTab, setActiveTab] = useState<'upload' | 'samples' | 'url'>('samples');
+  const [activeTab, setActiveTab] = useState<'upload' | 'presets' | 'url'>('upload');
   const [customUrl, setCustomUrl] = useState('');
-  const [customTitle, setCustomTitle] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedPresetIndex, setSelectedPresetIndex] = useState<number>(0);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
 
   const config = getStoredCloudinaryConfig();
-  const isCloudinaryConfigured = Boolean(config.cloudName && config.uploadPreset);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Cinematic Banner Images for top of modal matching reference photo
+  const bannerImages = {
+    image:
+      'https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=1200&auto=format&fit=crop', // Golden hour wheat field with warm sunset lighting
+    video:
+      'https://images.unsplash.com/photo-1485846234645-a62644f84728?q=80&w=1200&auto=format&fit=crop', // 35mm cinematic anamorphic camera lens
+    audio:
+      'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=1200&auto=format&fit=crop', // Studio soundstage with warm cinematic rim light
+  };
+
+  const samples =
+    mediaType === 'image'
+      ? SAMPLE_CLOUDINARY_MEDIA.images
+      : mediaType === 'video'
+      ? SAMPLE_CLOUDINARY_MEDIA.videos
+      : SAMPLE_CLOUDINARY_MEDIA.audios;
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (file) {
+      setSelectedFile(file);
+      setUploadError(null);
+    }
+  };
 
+  const executeUpload = async (fileToUpload: File) => {
     setIsUploading(true);
     setUploadProgress(0);
     setUploadError(null);
 
     try {
-      const result = await uploadToCloudinary(file, config, (percent) => {
+      const result = await uploadToCloudinary(fileToUpload, config, (percent) => {
         setUploadProgress(percent);
       });
 
       const defaultDims =
         mediaType === 'image'
-          ? { width: 420, height: 290 }
+          ? { width: 420, height: 280 }
           : mediaType === 'video'
-          ? { width: 440, height: 300 }
-          : { width: 360, height: 180 };
+          ? { width: 440, height: 280 }
+          : { width: 360, height: 160 };
 
       onAddMedia({
         type: mediaType,
         url: result.url,
-        title: customTitle.trim() || result.title || `${mediaType.toUpperCase()} Asset`,
+        title: result.title || `${mediaType.toUpperCase()} Asset`,
         width: result.storageMeta.width ? Math.min(result.storageMeta.width, 500) : defaultDims.width,
         height: result.storageMeta.height ? Math.min(result.storageMeta.height, 350) : defaultDims.height,
         storageMeta: result.storageMeta,
@@ -81,13 +104,14 @@ export default function MediaUploadModal({
     }
   };
 
-  const handleAddSample = (sample: any) => {
+  const handleAddPreset = (sample = samples[selectedPresetIndex]) => {
+    if (!sample) return;
     const defaultDims =
       mediaType === 'image'
-        ? { width: 420, height: 290 }
+        ? { width: 420, height: 280 }
         : mediaType === 'video'
-        ? { width: 440, height: 300 }
-        : { width: 360, height: 180 };
+        ? { width: 440, height: 280 }
+        : { width: 360, height: 160 };
 
     onAddMedia({
       type: mediaType,
@@ -100,27 +124,25 @@ export default function MediaUploadModal({
     onClose();
   };
 
-  const handleAddUrl = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAddUrl = (e?: React.FormEvent) => {
+    e?.preventDefault();
     const trimmedUrl = customUrl.trim();
     if (!trimmedUrl) return;
 
     const defaultDims =
       mediaType === 'image'
-        ? { width: 420, height: 290 }
+        ? { width: 420, height: 280 }
         : mediaType === 'video'
-        ? { width: 440, height: 300 }
-        : { width: 360, height: 180 };
+        ? { width: 440, height: 280 }
+        : { width: 360, height: 160 };
 
-    let defaultTitle = customTitle.trim();
-    let provider: 'cloudinary' | 'external' = trimmedUrl.includes('cloudinary') ? 'cloudinary' : 'external';
+    let defaultTitle = '';
+    const provider: 'cloudinary' | 'external' = trimmedUrl.includes('cloudinary') ? 'cloudinary' : 'external';
 
     if (mediaType === 'video') {
       const parsed = parseVideoUrl(trimmedUrl);
-      if (!defaultTitle) {
-        defaultTitle = parsed.titleFallback;
-      }
-    } else if (!defaultTitle) {
+      defaultTitle = parsed.titleFallback;
+    } else {
       defaultTitle = `${mediaType.toUpperCase()} Link`;
     }
 
@@ -138,157 +160,123 @@ export default function MediaUploadModal({
     onClose();
   };
 
-  const samples =
-    mediaType === 'image'
-      ? SAMPLE_CLOUDINARY_MEDIA.images
-      : mediaType === 'video'
-      ? SAMPLE_CLOUDINARY_MEDIA.videos
-      : SAMPLE_CLOUDINARY_MEDIA.audios;
+  // Primary action button handler
+  const handlePrimaryAction = () => {
+    if (activeTab === 'upload') {
+      if (selectedFile) {
+        executeUpload(selectedFile);
+      } else {
+        fileInputRef.current?.click();
+      }
+    } else if (activeTab === 'presets') {
+      handleAddPreset();
+    } else if (activeTab === 'url') {
+      handleAddUrl();
+    }
+  };
+
+  const primaryButtonLabel = () => {
+    if (isUploading) return `Uploading (${uploadProgress}%)`;
+    if (activeTab === 'upload') {
+      return selectedFile ? `Upload ${selectedFile.name.slice(0, 15)}...` : `Select ${mediaType}`;
+    }
+    if (activeTab === 'presets') {
+      return 'Add to Canvas';
+    }
+    return 'Add Link';
+  };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-lg bg-black border border-white/20 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-white/[0.02]">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-blue-600/20 text-blue-400">
-              {mediaType === 'image' && <ImageIcon size={20} />}
-              {mediaType === 'video' && <FileVideo size={20} />}
-              {mediaType === 'audio' && <MusicNote size={20} />}
-            </div>
-            <div>
-              <h3 className="font-semibold text-white capitalize">Add {mediaType}</h3>
-              <p className="text-xs text-white/50">Position and metadata stored in JSON</p>
-            </div>
-          </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="relative w-full max-w-[460px] bg-[#161519] border border-white/10 rounded-[28px] shadow-2xl overflow-hidden flex flex-col">
+        {/* Top Banner Image with Cinematic Lighting */}
+        <div className="relative w-full h-44 overflow-hidden rounded-t-[28px]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={bannerImages[mediaType]}
+            alt={`${mediaType} Banner`}
+            className="w-full h-full object-cover select-none pointer-events-none"
+          />
+          {/* Gradient fade to seamlessly blend with dark container */}
+          <div className="absolute inset-0 bg-gradient-to-t from-[#161519] via-[#161519]/25 to-black/20" />
+
+          {/* Floating subtle circular close button */}
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+            title="Close"
+            className="absolute top-4 right-4 w-8 h-8 rounded-full bg-black/60 hover:bg-black/90 backdrop-blur-md text-white/80 hover:text-white border border-white/15 flex items-center justify-center transition-all cursor-pointer shadow-lg"
           >
-            <Close size={18} />
+            <Close size={14} />
           </button>
         </div>
 
-        {/* Cloudinary Status Banner */}
-        <div className="flex items-center justify-between px-6 py-2.5 bg-black border-b border-white/10 text-xs">
-          <div className="flex items-center gap-2">
-            <span
-              className={`w-2 h-2 rounded-full ${
-                isCloudinaryConfigured ? 'bg-blue-500' : 'bg-white/40'
-              }`}
-            />
-            <span className="text-white/80">
-              {isCloudinaryConfigured
-                ? `Cloudinary Ready (${config.cloudName})`
-                : 'Using Cloudinary Media & Storage'}
-            </span>
+        {/* Modal Body */}
+        <div className="px-6 pt-2 pb-6 flex flex-col">
+          {/* Header text - minimal and clean */}
+          <div className="mb-4">
+            <h2 className="text-xl font-semibold text-white tracking-tight capitalize">
+              Upload {mediaType}
+            </h2>
+            <p className="text-xs text-white/50 mt-1">
+              Select a file, choose a preset, or paste a link.
+            </p>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              onClose();
-              onOpenCloudinaryConfig();
-            }}
-            className="text-blue-400 hover:text-white font-medium underline text-[11px] cursor-pointer"
-          >
-            Configure
-          </button>
-        </div>
 
-        {/* Tab Navigation */}
-        <div className="flex border-b border-white/10 px-6 pt-3 gap-4 text-xs font-medium">
-          <button
-            type="button"
-            onClick={() => setActiveTab('samples')}
-            className={`pb-2.5 border-b-2 cursor-pointer transition-colors ${
-              activeTab === 'samples'
-                ? 'border-blue-500 text-blue-400'
-                : 'border-transparent text-white/50 hover:text-white'
-            }`}
-          >
-            Cloudinary Samples
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('upload')}
-            className={`pb-2.5 border-b-2 cursor-pointer transition-colors ${
-              activeTab === 'upload'
-                ? 'border-blue-500 text-blue-400'
-                : 'border-transparent text-white/50 hover:text-white'
-            }`}
-          >
-            Upload File
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('url')}
-            className={`pb-2.5 border-b-2 cursor-pointer transition-colors ${
-              activeTab === 'url'
-                ? 'border-blue-500 text-blue-400'
-                : 'border-transparent text-white/50 hover:text-white'
-            }`}
-          >
-            Paste URL
-          </button>
-        </div>
+          {/* Tab Selector Pills */}
+          <div className="flex items-center gap-1.5 p-1 bg-white/[0.05] rounded-full w-fit mb-5 border border-white/5">
+            <button
+              type="button"
+              onClick={() => setActiveTab('upload')}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
+                activeTab === 'upload'
+                  ? 'bg-white text-black shadow-md'
+                  : 'text-white/60 hover:text-white'
+              }`}
+            >
+              <CloudUpload size={14} />
+              Upload
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('presets')}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
+                activeTab === 'presets'
+                  ? 'bg-white text-black shadow-md'
+                  : 'text-white/60 hover:text-white'
+              }`}
+            >
+              <ImageIcon size={14} />
+              Presets
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('url')}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
+                activeTab === 'url'
+                  ? 'bg-white text-black shadow-md'
+                  : 'text-white/60 hover:text-white'
+              }`}
+            >
+              <LinkIcon size={14} />
+              Link
+            </button>
+          </div>
 
-        {/* Content Body */}
-        <div className="p-6 overflow-y-auto flex-1">
-          {/* TAB 1: SAMPLES */}
-          {activeTab === 'samples' && (
-            <div className="space-y-3">
-              <p className="text-xs text-white/60">
-                Select a Cloudinary asset to render directly on canvas:
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {samples.map((s, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => handleAddSample(s)}
-                    className="flex flex-col text-left p-3 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 hover:border-blue-500/60 transition-all group cursor-pointer"
-                  >
-                    {mediaType === 'image' && (
-                      <div className="w-full h-24 rounded-lg overflow-hidden bg-black mb-2">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={s.url}
-                          alt={s.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                        />
-                      </div>
-                    )}
-                    <span className="font-medium text-xs text-white truncate">{s.title}</span>
-                    <span className="text-[10px] text-blue-400 mt-1 flex items-center gap-1">
-                      <span>Cloudinary</span>
-                      <span>•</span>
-                      <span>{s.storageMeta?.format?.toUpperCase()}</span>
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* TAB 2: UPLOAD FILE */}
-          {activeTab === 'upload' && (
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-white/80 mb-1">
-                  Title (Optional)
-                </label>
+          {/* Tab Content Area */}
+          <div className="min-h-[170px] flex flex-col justify-center">
+            {/* Tab 1: Upload Dropzone */}
+            {activeTab === 'upload' && (
+              <div
+                onClick={() => !isUploading && fileInputRef.current?.click()}
+                className={`relative border border-dashed rounded-2xl p-6 flex flex-col items-center justify-center text-center transition-all cursor-pointer ${
+                  selectedFile
+                    ? 'border-blue-500/80 bg-blue-500/[0.05]'
+                    : 'border-white/15 hover:border-white/35 bg-white/[0.02] hover:bg-white/[0.04]'
+                }`}
+              >
                 <input
-                  type="text"
-                  placeholder={`My ${mediaType}`}
-                  value={customTitle}
-                  onChange={(e) => setCustomTitle(e.target.value)}
-                  className="w-full px-3 py-2 bg-black border border-white/20 rounded-xl text-xs text-white focus:outline-none focus:border-blue-500"
-                />
-              </div>
-
-              <div className="relative border-2 border-dashed border-white/20 hover:border-blue-500 rounded-2xl p-6 flex flex-col items-center justify-center text-center transition-colors bg-white/[0.02]">
-                <input
+                  ref={fileInputRef}
                   type="file"
                   accept={
                     mediaType === 'image'
@@ -298,82 +286,125 @@ export default function MediaUploadModal({
                       : 'audio/*'
                   }
                   disabled={isUploading}
-                  onChange={handleFileUpload}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                  onChange={handleFileChange}
+                  className="hidden"
                 />
-                <div className="p-3 rounded-2xl bg-blue-600/20 text-blue-400 mb-2">
-                  <CloudUpload size={24} />
+
+                <div className="w-10 h-10 rounded-full bg-white/[0.08] flex items-center justify-center text-white/80 mb-2.5">
+                  <CloudUpload size={20} />
                 </div>
-                <p className="text-xs font-medium text-white">Click or drag a {mediaType} file</p>
-                <p className="text-[11px] text-white/50 mt-1">
-                  Uploads directly to Cloudinary storage
-                </p>
+
+                {selectedFile ? (
+                  <div className="flex flex-col items-center max-w-full px-2">
+                    <span className="text-xs font-medium text-white truncate max-w-[260px]">
+                      {selectedFile.name}
+                    </span>
+                    <span className="text-[11px] text-blue-400 mt-0.5">
+                      {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • Click to replace
+                    </span>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-xs font-medium text-white/90">
+                      Drag & drop or click to browse
+                    </p>
+                    <p className="text-[11px] text-white/40 mt-1">
+                      Supports high quality {mediaType}s
+                    </p>
+                  </>
+                )}
 
                 {isUploading && (
-                  <div className="w-full mt-4">
+                  <div className="w-full mt-3">
                     <div className="w-full bg-white/10 rounded-full h-1.5 overflow-hidden">
                       <div
-                        className="bg-blue-600 h-1.5 rounded-full transition-all duration-200"
+                        className="bg-white h-1.5 rounded-full transition-all duration-200"
                         style={{ width: `${uploadProgress}%` }}
                       />
                     </div>
-                    <span className="text-[10px] text-blue-400 mt-1.5 inline-block">
-                      Uploading to Cloudinary: {uploadProgress}%
-                    </span>
                   </div>
                 )}
               </div>
+            )}
 
-              {uploadError && (
-                <div className="p-3 bg-white/5 border border-white/20 rounded-xl text-white text-xs">
-                  {uploadError}
-                </div>
-              )}
-            </div>
-          )}
+            {/* Tab 2: Cinematic Presets Grid */}
+            {activeTab === 'presets' && (
+              <div className="grid grid-cols-2 gap-2.5 max-h-[190px] overflow-y-auto pr-1">
+                {samples.map((sample, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => setSelectedPresetIndex(idx)}
+                    onDoubleClick={() => handleAddPreset(sample)}
+                    className={`relative rounded-xl overflow-hidden p-2 flex flex-col cursor-pointer transition-all border ${
+                      selectedPresetIndex === idx
+                        ? 'border-white bg-white/[0.08] ring-1 ring-white/50'
+                        : 'border-white/10 hover:border-white/25 bg-white/[0.02]'
+                    }`}
+                  >
+                    {mediaType === 'image' && (
+                      <div className="w-full h-16 rounded-lg overflow-hidden bg-black mb-1.5">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={sample.url}
+                          alt={sample.title}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
+                    <span className="text-[11px] font-medium text-white/90 truncate">
+                      {sample.title}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
 
-          {/* TAB 3: PASTE URL */}
-          {activeTab === 'url' && (
-            <form onSubmit={handleAddUrl} className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-white/80 mb-1">
-                  {mediaType === 'video'
-                    ? 'Video Link (YouTube, Pinterest, Cloudinary, MP4)'
-                    : `${mediaType.toUpperCase()} URL`}
-                </label>
+            {/* Tab 3: Paste URL */}
+            {activeTab === 'url' && (
+              <div className="space-y-3">
                 <input
                   type="url"
-                  required
                   placeholder={
                     mediaType === 'video'
-                      ? 'https://youtube.com/watch?v=... or https://pinterest.com/pin/...'
-                      : 'https://res.cloudinary.com/... or https://...'
+                      ? 'https://youtube.com/... or https://...'
+                      : 'https://...'
                   }
                   value={customUrl}
                   onChange={(e) => setCustomUrl(e.target.value)}
-                  className="w-full px-3 py-2 bg-black border border-white/20 rounded-xl text-xs text-white focus:outline-none focus:border-blue-500 font-mono"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleAddUrl();
+                  }}
+                  className="w-full px-3.5 py-2.5 bg-black/60 border border-white/15 focus:border-white/50 rounded-xl text-xs text-white placeholder-white/30 focus:outline-none transition-colors"
                 />
+                <p className="text-[11px] text-white/40">
+                  Direct image, video, YouTube, Pinterest, or Cloudinary URL
+                </p>
               </div>
+            )}
 
-              <div>
-                <label className="block text-xs font-medium text-white/80 mb-1">Title</label>
-                <input
-                  type="text"
-                  placeholder="Asset label"
-                  value={customTitle}
-                  onChange={(e) => setCustomTitle(e.target.value)}
-                  className="w-full px-3 py-2 bg-black border border-white/20 rounded-xl text-xs text-white focus:outline-none focus:border-blue-500"
-                />
-              </div>
+            {uploadError && (
+              <p className="text-[11px] text-red-400 mt-2 text-center">{uploadError}</p>
+            )}
+          </div>
 
-              <button
-                type="submit"
-                className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded-xl transition-colors cursor-pointer"
-              >
-                Add to Canvas
-              </button>
-            </form>
-          )}
+          {/* Bottom Footer Action Buttons - Matching Reference Image Pill Design */}
+          <div className="flex items-center gap-3 mt-6 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-3 px-6 rounded-full bg-white/[0.08] hover:bg-white/[0.14] text-white/80 hover:text-white font-medium text-xs transition-colors cursor-pointer text-center"
+            >
+              Close
+            </button>
+            <button
+              type="button"
+              disabled={isUploading}
+              onClick={handlePrimaryAction}
+              className="flex-1 py-3 px-6 rounded-full bg-white hover:bg-neutral-200 text-black font-semibold text-xs transition-all shadow-lg cursor-pointer text-center disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {primaryButtonLabel()}
+            </button>
+          </div>
         </div>
       </div>
     </div>

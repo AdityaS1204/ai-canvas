@@ -54,7 +54,7 @@ export default function ImageItem({
       isConnecting={isConnecting}
       snappedSide={snappedSide}
     >
-      <div className="relative w-full h-full flex items-center justify-center bg-black rounded-xl overflow-hidden group/img">
+      <div className="relative w-full h-full flex items-center justify-center bg-black rounded-[14px] overflow-hidden">
         {!isLoaded && !hasError && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/80 animate-pulse">
             <span className="text-xs text-white/50">Loading image...</span>
@@ -74,16 +74,8 @@ export default function ImageItem({
             onLoad={() => setIsLoaded(true)}
             onError={() => setHasError(true)}
             draggable={false}
-            className="w-full h-full object-cover rounded-xl pointer-events-none select-none"
+            className="w-full h-full object-cover rounded-[14px] pointer-events-none select-none"
           />
-        )}
-
-        {/* Subtle metadata overlay on hover (only blue, white, black) */}
-        {item.storageMeta && (
-          <div className="absolute top-2 left-2 pointer-events-none opacity-0 group-hover/img:opacity-100 transition-opacity bg-black/80 backdrop-blur-md px-2 py-0.5 rounded text-[10px] text-white border border-white/20">
-            <span className="text-blue-400 font-medium">Cloudinary</span>
-            {item.storageMeta.width && item.storageMeta.height ? ` • ${item.storageMeta.width}×${item.storageMeta.height}` : ''}
-          </div>
         )}
       </div>
     </CanvasItemCard>

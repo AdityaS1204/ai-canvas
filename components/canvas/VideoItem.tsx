@@ -57,7 +57,7 @@ export default function VideoItem({
       isConnecting={isConnecting}
       snappedSide={snappedSide}
     >
-      <div className="relative w-full h-full flex flex-col items-center justify-center bg-black rounded-xl overflow-hidden group/vid">
+      <div className="relative w-full h-full flex flex-col items-center justify-center bg-black rounded-[14px] overflow-hidden">
         {hasError ? (
           <div className="flex flex-col items-center justify-center p-4 text-center text-white/80 text-xs">
             <p className="font-semibold text-white">Failed to load video</p>
@@ -68,7 +68,7 @@ export default function VideoItem({
           <iframe
             src={parsed.embedUrl}
             title={item.title || parsed.titleFallback}
-            className="w-full h-full border-0 rounded-xl bg-black pointer-events-auto"
+            className="w-full h-full border-0 rounded-[14px] bg-black pointer-events-auto"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
           />
@@ -81,17 +81,9 @@ export default function VideoItem({
             playsInline
             preload="metadata"
             onError={() => setHasError(true)}
-            className="w-full h-full object-contain rounded-xl bg-black pointer-events-auto"
+            className="w-full h-full object-contain rounded-[14px] bg-black pointer-events-auto"
           />
         )}
-
-        {/* Video platform badge overlay on hover */}
-        <div className="absolute top-2 left-2 pointer-events-none opacity-0 group-hover/vid:opacity-100 transition-opacity bg-black/85 backdrop-blur-md px-2 py-0.5 rounded text-[10px] text-white border border-white/20 capitalize flex items-center gap-1.5">
-          <span className="text-blue-400 font-medium">{parsed.platform}</span>
-          {item.storageMeta?.duration && (
-            <span>• {Math.round(item.storageMeta.duration)}s</span>
-          )}
-        </div>
       </div>
     </CanvasItemCard>
   );
