@@ -12,6 +12,7 @@ interface JsonViewerModalProps {
   strokes?: DrawingStroke[];
   connectors?: CanvasConnector[];
   viewport?: { x: number; y: number; scale: number };
+  theme?: 'dark' | 'light';
   onImportState: (state: {
     items: CanvasItem[];
     strokes?: DrawingStroke[];
@@ -27,8 +28,10 @@ export default function JsonViewerModal({
   strokes = [],
   connectors = [],
   viewport,
+  theme = 'dark',
   onImportState,
 }: JsonViewerModalProps) {
+  const isLight = theme === 'light';
   const [activeTab, setActiveTab] = useState<'view' | 'import'>('view');
   const [importText, setImportText] = useState('');
   const [importError, setImportError] = useState<string | null>(null);
@@ -116,7 +119,9 @@ export default function JsonViewerModal({
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
+      className={`fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md transition-colors ${
+        isLight ? 'bg-black/35' : 'bg-black/80'
+      }`}
     >
       <motion.div
         initial={{
@@ -148,17 +153,25 @@ export default function JsonViewerModal({
         style={{
           transformOrigin: '67% 100%',
         }}
-        className="relative w-full max-w-2xl bg-[#161519] border border-white/10 rounded-[28px] shadow-[inset_0_1px_1px_rgba(255,255,255,0.18),inset_0_0_24px_rgba(255,255,255,0.02),0_24px_65px_rgba(0,0,0,0.85)] overflow-hidden flex flex-col max-h-[88vh]"
+        className={`relative w-full max-w-2xl rounded-[28px] overflow-hidden flex flex-col max-h-[88vh] transition-colors border ${
+          isLight
+            ? 'bg-[#ffffff] border-[#ded6d6] text-[#2d2424] shadow-[inset_0_1px_1px_rgba(255,255,255,0.8),0_24px_65px_rgba(0,0,0,0.15)]'
+            : 'bg-[#161519] border-white/10 text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.18),inset_0_0_24px_rgba(255,255,255,0.02),0_24px_65px_rgba(0,0,0,0.85)]'
+        }`}
       >
         {/* Modal Body */}
         <div className="p-6 flex flex-col flex-1 overflow-hidden">
           {/* Header with Title and Close button */}
           <div className="flex items-start justify-between mb-4">
             <div>
-              <h2 className="text-xl font-semibold text-white tracking-tight">
+              <h2
+                className={`text-xl font-semibold tracking-tight ${
+                  isLight ? 'text-[#2d2424]' : 'text-white'
+                }`}
+              >
                 Canvas State & JSON
               </h2>
-              <p className="text-xs text-white/50 mt-1">
+              <p className={`text-xs mt-1 ${isLight ? 'text-[#6e5d5d]' : 'text-white/50'}`}>
                 Inspect, copy, export, or import project state.
               </p>
             </div>
@@ -166,20 +179,34 @@ export default function JsonViewerModal({
               type="button"
               onClick={onClose}
               title="Close"
-              className="w-8 h-8 rounded-full bg-white/[0.06] hover:bg-white/[0.14] text-white/80 hover:text-white border border-white/10 flex items-center justify-center transition-all cursor-pointer shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)] shrink-0"
+              className={`w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer shrink-0 border ${
+                isLight
+                  ? 'bg-black/[0.05] hover:bg-black/[0.1] text-black/70 hover:text-black border-black/10'
+                  : 'bg-white/[0.06] hover:bg-white/[0.14] text-white/80 hover:text-white border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]'
+              }`}
             >
               <Close size={14} />
             </button>
           </div>
 
           {/* Tab Selector Pills */}
-          <div className="flex items-center gap-1.5 p-1 bg-white/[0.05] rounded-full w-fit mb-4 border border-white/5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.06)]">
+          <div
+            className={`flex items-center gap-1.5 p-1 rounded-full w-fit mb-4 border transition-colors ${
+              isLight
+                ? 'bg-black/[0.04] border-black/5 shadow-inner'
+                : 'bg-white/[0.05] border-white/5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.06)]'
+            }`}
+          >
             <button
               type="button"
               onClick={() => setActiveTab('view')}
               className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
                 activeTab === 'view'
-                  ? 'bg-white text-black shadow-md'
+                  ? isLight
+                    ? 'bg-[#2d2424] text-white shadow-sm'
+                    : 'bg-white text-black shadow-md'
+                  : isLight
+                  ? 'text-black/60 hover:text-black'
                   : 'text-white/60 hover:text-white'
               }`}
             >
@@ -191,7 +218,11 @@ export default function JsonViewerModal({
               onClick={() => setActiveTab('import')}
               className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
                 activeTab === 'import'
-                  ? 'bg-white text-black shadow-md'
+                  ? isLight
+                    ? 'bg-[#2d2424] text-white shadow-sm'
+                    : 'bg-white text-black shadow-md'
+                  : isLight
+                  ? 'text-black/60 hover:text-black'
                   : 'text-white/60 hover:text-white'
               }`}
             >
@@ -204,20 +235,34 @@ export default function JsonViewerModal({
           <div className="flex-1 overflow-hidden flex flex-col">
             {activeTab === 'view' ? (
               <div className="flex flex-col flex-1 overflow-hidden space-y-4">
-                <div className="flex-1 overflow-auto bg-black/70 border border-white/10 rounded-2xl p-4 font-mono text-[11px] text-white/90 leading-relaxed shadow-[inset_0_2px_6px_rgba(0,0,0,0.8),inset_0_0_1px_rgba(255,255,255,0.08)]">
+                <div
+                  className={`flex-1 overflow-auto rounded-2xl p-4 font-mono text-[11px] leading-relaxed border ${
+                    isLight
+                      ? 'bg-[#fbf9f9] border-black/10 text-[#2d2424] shadow-inner'
+                      : 'bg-black/70 border-white/10 text-white/90 shadow-[inset_0_2px_6px_rgba(0,0,0,0.8),inset_0_0_1px_rgba(255,255,255,0.08)]'
+                  }`}
+                >
                   <pre>{jsonString}</pre>
                 </div>
 
                 {/* Footer Buttons for View */}
                 <div className="flex items-center justify-between gap-3 pt-2">
-                  <span className="text-[11px] text-white/40 font-mono">
+                  <span
+                    className={`text-[11px] font-mono ${
+                      isLight ? 'text-[#7a6b6b]' : 'text-white/40'
+                    }`}
+                  >
                     {items.length} items • {strokes.length} strokes • {connectors.length} connectors
                   </span>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={handleCopy}
-                      className="py-2.5 px-5 rounded-full bg-white/[0.08] hover:bg-white/[0.14] text-white/90 font-medium text-xs transition-colors cursor-pointer flex items-center gap-1.5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)]"
+                      className={`py-2.5 px-5 rounded-full font-medium text-xs transition-colors cursor-pointer flex items-center gap-1.5 ${
+                        isLight
+                          ? 'bg-black/[0.05] hover:bg-black/[0.1] text-[#2d2424] border border-black/5'
+                          : 'bg-white/[0.08] hover:bg-white/[0.14] text-white/90 shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)]'
+                      }`}
                     >
                       {copied ? <Check size={14} /> : null}
                       {copied ? 'Copied' : 'Copy JSON'}
@@ -225,7 +270,11 @@ export default function JsonViewerModal({
                     <button
                       type="button"
                       onClick={handleDownload}
-                      className="py-2.5 px-5 rounded-full bg-white hover:bg-neutral-200 text-black font-semibold text-xs transition-all shadow-[inset_0_1px_1px_rgba(255,255,255,0.8),0_4px_16px_rgba(255,255,255,0.2)] cursor-pointer"
+                      className={`py-2.5 px-5 rounded-full font-semibold text-xs transition-all cursor-pointer ${
+                        isLight
+                          ? 'bg-[#2d2424] hover:bg-[#1a1515] text-white shadow-md'
+                          : 'bg-white hover:bg-neutral-200 text-black shadow-[inset_0_1px_1px_rgba(255,255,255,0.8),0_4px_16px_rgba(255,255,255,0.2)]'
+                      }`}
                     >
                       Download File
                     </button>
@@ -235,14 +284,22 @@ export default function JsonViewerModal({
             ) : (
               <div className="flex flex-col flex-1 overflow-hidden space-y-3">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-medium text-white/80">
+                  <label
+                    className={`text-xs font-medium ${
+                      isLight ? 'text-[#382d2d]' : 'text-white/80'
+                    }`}
+                  >
                     Paste JSON or choose a file:
                   </label>
                   <input
                     type="file"
                     accept=".json,application/json"
                     onChange={handleFileImport}
-                    className="block text-xs text-white/60 file:mr-2 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-[11px] file:font-medium file:bg-white/10 file:text-white hover:file:bg-white/20 file:cursor-pointer"
+                    className={`block text-xs file:mr-2 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-[11px] file:font-medium file:cursor-pointer ${
+                      isLight
+                        ? 'text-black/60 file:bg-black/5 file:text-[#2d2424] hover:file:bg-black/10'
+                        : 'text-white/60 file:bg-white/10 file:text-white hover:file:bg-white/20'
+                    }`}
                   />
                 </div>
 
@@ -250,18 +307,26 @@ export default function JsonViewerModal({
                   value={importText}
                   onChange={(e) => setImportText(e.target.value)}
                   placeholder='{"version": "1.0.0", "items": [...], ...}'
-                  className="w-full flex-1 bg-black/70 border border-white/15 focus:border-white/50 rounded-2xl p-4 font-mono text-xs text-white placeholder-white/25 outline-none resize-none shadow-[inset_0_2px_6px_rgba(0,0,0,0.8),inset_0_0_1px_rgba(255,255,255,0.08)]"
+                  className={`w-full flex-1 rounded-2xl p-4 font-mono text-xs outline-none resize-none transition-colors border ${
+                    isLight
+                      ? 'bg-[#fbf9f9] border-black/15 focus:border-black/40 text-[#2d2424] placeholder-black/30 shadow-inner'
+                      : 'bg-black/70 border-white/15 focus:border-white/50 text-white placeholder-white/25 shadow-[inset_0_2px_6px_rgba(0,0,0,0.8),inset_0_0_1px_rgba(255,255,255,0.08)]'
+                  }`}
                 />
 
                 {importError && (
-                  <p className="text-[11px] text-red-400 text-center">{importError}</p>
+                  <p className="text-[11px] text-red-500 dark:text-red-400 text-center">{importError}</p>
                 )}
 
                 <div className="flex items-center gap-3 pt-2">
                   <button
                     type="button"
                     onClick={onClose}
-                    className="flex-1 py-3 px-6 rounded-full bg-white/[0.08] hover:bg-white/[0.14] text-white/80 font-medium text-xs transition-colors cursor-pointer text-center shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)]"
+                    className={`flex-1 py-3 px-6 rounded-full font-medium text-xs transition-colors cursor-pointer text-center ${
+                      isLight
+                        ? 'bg-black/[0.05] hover:bg-black/[0.09] text-[#2d2424] hover:text-black border border-black/5'
+                        : 'bg-white/[0.08] hover:bg-white/[0.14] text-white/80 shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)]'
+                    }`}
                   >
                     Cancel
                   </button>
@@ -269,7 +334,11 @@ export default function JsonViewerModal({
                     type="button"
                     disabled={!importText.trim()}
                     onClick={handleImport}
-                    className="flex-1 py-3 px-6 rounded-full bg-white hover:bg-neutral-200 text-black font-semibold text-xs transition-all shadow-[inset_0_1px_1px_rgba(255,255,255,0.8),0_4px_16px_rgba(255,255,255,0.2)] cursor-pointer text-center disabled:opacity-50 disabled:cursor-not-allowed"
+                    className={`flex-1 py-3 px-6 rounded-full font-semibold text-xs transition-all cursor-pointer text-center disabled:opacity-50 disabled:cursor-not-allowed ${
+                      isLight
+                        ? 'bg-[#2d2424] hover:bg-[#1a1515] text-white shadow-md'
+                        : 'bg-white hover:bg-neutral-200 text-black shadow-[inset_0_1px_1px_rgba(255,255,255,0.8),0_4px_16px_rgba(255,255,255,0.2)]'
+                    }`}
                   >
                     Load into Canvas
                   </button>

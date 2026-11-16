@@ -1273,6 +1273,7 @@ export default function InfiniteCanvas() {
                 key="media-upload-modal"
                 isOpen={Boolean(uploadModalType)}
                 mediaType={uploadModalType}
+                theme={theme}
                 onClose={() => setUploadModalType(null)}
                 onAddMedia={handleAddMedia}
                 onOpenCloudinaryConfig={() => setIsCloudinaryModalOpen(true)}
@@ -1286,6 +1287,7 @@ export default function InfiniteCanvas() {
               <CloudinaryConfigModal
                 key="cloudinary-modal"
                 isOpen={isCloudinaryModalOpen}
+                theme={theme}
                 onClose={() => setIsCloudinaryModalOpen(false)}
                 onSaved={(cfg) => {
                   setCloudinaryConfig(cfg);
@@ -1301,6 +1303,7 @@ export default function InfiniteCanvas() {
               <JsonViewerModal
                 key="json-viewer-modal"
                 isOpen={isJsonModalOpen}
+                theme={theme}
                 onClose={() => setIsJsonModalOpen(false)}
                 items={items}
                 strokes={strokes}

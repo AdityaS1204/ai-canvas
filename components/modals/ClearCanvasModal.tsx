@@ -55,7 +55,9 @@ export default function ClearCanvasModal({
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md"
+      className={`fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md transition-colors ${
+        isLight ? 'bg-black/35' : 'bg-black/75'
+      }`}
     >
       <motion.div
         onClick={(e) => e.stopPropagation()}
@@ -88,10 +90,10 @@ export default function ClearCanvasModal({
         style={{
           transformOrigin: '50% 100%',
         }}
-        className={`relative w-full max-w-sm rounded-[24px] border shadow-[inset_0_1px_1px_rgba(255,255,255,0.18),0_24px_65px_rgba(0,0,0,0.85)] p-5 flex flex-col gap-4 transition-colors ${
+        className={`relative w-full max-w-sm rounded-[24px] border p-5 flex flex-col gap-4 transition-colors ${
           isLight
-            ? 'bg-[#ffffff] border-[#ded6d6] text-[#2d2424]'
-            : 'bg-[#181519] border-white/10 text-white'
+            ? 'bg-[#ffffff] border-[#ded6d6] text-[#2d2424] shadow-[inset_0_1px_1px_rgba(255,255,255,0.8),0_24px_65px_rgba(0,0,0,0.15)]'
+            : 'bg-[#181519] border-white/10 text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.18),0_24px_65px_rgba(0,0,0,0.85)]'
         }`}
       >
         {/* Top bar with Icon and Close button */}
