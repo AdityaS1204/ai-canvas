@@ -95,7 +95,16 @@ export async function uploadToCloudinary(
         } else {
           try {
             const errData = JSON.parse(xhr.responseText);
-            reject(new Error(errData?.error?.message || `Cloudinary upload failed: HTTP ${xhr.status}`));
+            const msg = errData?.error?.message || `Cloudinary upload failed: HTTP ${xhr.status}`;
+            if (msg.toLowerCase().includes('preset')) {
+              reject(
+                new Error(
+                  `Upload preset "${config.uploadPreset}" was not found on Cloudinary account "${config.cloudName}". Please verify that this preset exists and is set to "Unsigned" in your Cloudinary console.`
+                )
+              );
+            } else {
+              reject(new Error(msg));
+            }
           } catch {
             reject(new Error(`Cloudinary upload failed with HTTP status ${xhr.status}`));
           }
@@ -112,6 +121,27 @@ export async function uploadToCloudinary(
 
   // Fallback: If no upload preset is configured, load as local object URL / base64
   return new Promise((resolve, reject) => {
+    // For videos, audios, and files > 2MB, use createObjectURL for fast, lag-free playback
+    if (isVideo || isAudio || file.size > 2 * 1024 * 1024) {
+      try {
+        const objectUrl = URL.createObjectURL(file);
+        resolve({
+          url: objectUrl,
+          title: file.name,
+          storageMeta: {
+            provider: 'local',
+            format: file.type.split('/')[1] || 'media',
+            bytes: file.size,
+            secureUrl: objectUrl,
+          },
+        });
+        return;
+      } catch (err: any) {
+        reject(new Error(err?.message || 'Failed to create local object URL'));
+        return;
+      }
+    }
+
     const reader = new FileReader();
     reader.onload = () => {
       const resultUrl = reader.result as string;

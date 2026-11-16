@@ -50,7 +50,7 @@ export default function MediaUploadModal({
   onClose,
   mediaType,
   onAddMedia,
-  onOpenCloudinaryConfig: _onOpenCloudinaryConfig,
+  onOpenCloudinaryConfig,
 }: MediaUploadModalProps) {
   const [activeTab, setActiveTab] = useState<'upload' | 'presets' | 'url'>('upload');
   const [customUrl, setCustomUrl] = useState('');
@@ -129,6 +129,32 @@ export default function MediaUploadModal({
     } finally {
       setIsUploading(false);
     }
+  };
+
+  const handleAddAsLocal = () => {
+    if (!selectedFile) return;
+    const localUrl = URL.createObjectURL(selectedFile);
+    const defaultDims =
+      mediaType === 'image'
+        ? { width: 420, height: 280 }
+        : mediaType === 'video'
+        ? { width: 440, height: 280 }
+        : { width: 360, height: 160 };
+
+    onAddMedia({
+      type: mediaType,
+      url: localUrl,
+      title: selectedFile.name,
+      width: defaultDims.width,
+      height: defaultDims.height,
+      storageMeta: {
+        provider: 'local',
+        format: selectedFile.type.split('/')[1] || 'media',
+        bytes: selectedFile.size,
+        secureUrl: localUrl,
+      },
+    });
+    onClose();
   };
 
   const handleAddPreset = (sample = samples[selectedPresetIndex]) => {
@@ -221,8 +247,8 @@ export default function MediaUploadModal({
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      exit={{ opacity: 0, transition: { duration: 0.22, ease: 'easeOut' } }}
-      transition={{ duration: 0.25, ease: 'easeOut' }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.42, ease: [0.25, 0.1, 0.25, 1] }}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -260,8 +286,9 @@ export default function MediaUploadModal({
           scale: 0.14,
           y: 360,
           transition: {
-            duration: 0.28,
-            ease: [0.32, 0, 0.67, 0],
+            duration: 0.45,
+            ease: [0.32, 0.72, 0, 1],
+            opacity: { duration: 0.42, ease: 'easeInOut' },
           },
         }}
         transition={{
@@ -275,7 +302,7 @@ export default function MediaUploadModal({
         }}
         className="relative w-full max-w-[520px] bg-[#161519] border border-white/10 rounded-[28px] shadow-[inset_0_1px_1px_rgba(255,255,255,0.18),inset_0_0_24px_rgba(255,255,255,0.02),0_24px_65px_rgba(0,0,0,0.85)] overflow-hidden flex flex-col"
       >
-        {/* Upper Section: Audio Waveform for audio (reduced height h-28); Cinematic Banner Image for image/video (h-44) */}
+        {/* Upper Section: Audio Waveform for audio (compact height h-28); Cinematic Banner Image for image/video (h-44) */}
         <div
           className={`relative w-full ${
             mediaType === 'audio' ? 'h-28' : 'h-44'
@@ -546,8 +573,43 @@ export default function MediaUploadModal({
               </div>
             )}
 
+            {/* Refined Error Card matching the Modal UI Language */}
             {uploadError && (
-              <p className="text-[11px] text-red-400 mt-2 text-center">{uploadError}</p>
+              <div className="mt-3.5 p-4 rounded-2xl bg-[#1a1418] border border-red-500/25 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08),inset_0_0_20px_rgba(239,68,68,0.05),0_8px_20px_rgba(0,0,0,0.5)] text-left space-y-3 animate-in fade-in duration-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse shadow-[0_0_8px_rgba(248,113,113,0.8)]" />
+                    <span className="text-xs font-semibold text-white tracking-tight">Upload Notice</span>
+                  </div>
+                  <span className="text-[10px] font-medium text-red-400/90 px-2 py-0.5 rounded-full bg-red-500/15 border border-red-500/20">
+                    Configuration Required
+                  </span>
+                </div>
+                <p className="text-[11px] text-white/70 leading-relaxed font-normal">
+                  {uploadError}
+                </p>
+                <div className="pt-2 border-t border-white/5 flex flex-wrap items-center gap-2">
+                  {selectedFile && (
+                    <button
+                      type="button"
+                      onClick={handleAddAsLocal}
+                      className="px-4 py-2 rounded-full bg-white hover:bg-neutral-200 text-black font-semibold text-xs transition-all shadow-[inset_0_1px_1px_rgba(255,255,255,0.8),0_2px_8px_rgba(255,255,255,0.15)] cursor-pointer"
+                    >
+                      Use as Local {mediaType === 'video' ? 'Video' : mediaType === 'image' ? 'Image' : 'Audio'}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onOpenCloudinaryConfig();
+                    }}
+                    className="px-4 py-2 rounded-full bg-white/[0.08] hover:bg-white/[0.14] text-white/80 hover:text-white font-medium text-xs transition-colors cursor-pointer shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]"
+                  >
+                    Configure Cloudinary
+                  </button>
+                </div>
+              </div>
             )}
           </div>
 

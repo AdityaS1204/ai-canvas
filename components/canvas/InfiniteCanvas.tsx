@@ -1281,53 +1281,68 @@ export default function InfiniteCanvas() {
           </AnimatePresence>
 
           {/* Cloudinary Storage Settings Modal */}
-          <CloudinaryConfigModal
-            isOpen={isCloudinaryModalOpen}
-            onClose={() => setIsCloudinaryModalOpen(false)}
-            onSaved={(cfg) => {
-              setCloudinaryConfig(cfg);
-              showToast('Cloudinary settings saved');
-            }}
-          />
+          <AnimatePresence>
+            {isCloudinaryModalOpen && (
+              <CloudinaryConfigModal
+                key="cloudinary-modal"
+                isOpen={isCloudinaryModalOpen}
+                onClose={() => setIsCloudinaryModalOpen(false)}
+                onSaved={(cfg) => {
+                  setCloudinaryConfig(cfg);
+                  showToast('Cloudinary settings saved');
+                }}
+              />
+            )}
+          </AnimatePresence>
 
           {/* JSON Inspector & Import/Export Modal */}
-          <JsonViewerModal
-            isOpen={isJsonModalOpen}
-            onClose={() => setIsJsonModalOpen(false)}
-            items={items}
-            strokes={strokes}
-            connectors={connectors}
-            viewport={{ x: pan.x, y: pan.y, scale: zoom }}
-            onImportState={(newState) => {
-              pushHistorySnapshot();
-              setItems(newState.items);
-              setStrokes(newState.strokes || []);
-              setConnectors(newState.connectors || []);
-              setSelectedItemIds([]);
-              setSelectedStrokeIds([]);
-              if (newState.viewport) {
-                setPan({ x: newState.viewport.x, y: newState.viewport.y });
-                setZoom(newState.viewport.scale || 1);
-              }
-              showToast('Canvas JSON loaded');
-            }}
-          />
+          <AnimatePresence>
+            {isJsonModalOpen && (
+              <JsonViewerModal
+                key="json-viewer-modal"
+                isOpen={isJsonModalOpen}
+                onClose={() => setIsJsonModalOpen(false)}
+                items={items}
+                strokes={strokes}
+                connectors={connectors}
+                viewport={{ x: pan.x, y: pan.y, scale: zoom }}
+                onImportState={(newState) => {
+                  pushHistorySnapshot();
+                  setItems(newState.items);
+                  setStrokes(newState.strokes || []);
+                  setConnectors(newState.connectors || []);
+                  setSelectedItemIds([]);
+                  setSelectedStrokeIds([]);
+                  if (newState.viewport) {
+                    setPan({ x: newState.viewport.x, y: newState.viewport.y });
+                    setZoom(newState.viewport.scale || 1);
+                  }
+                  showToast('Canvas JSON loaded');
+                }}
+              />
+            )}
+          </AnimatePresence>
 
           {/* Clear Canvas Confirmation Modal with SlideToConfirm */}
-          <ClearCanvasModal
-            isOpen={isClearModalOpen}
-            onClose={() => setIsClearModalOpen(false)}
-            theme={theme}
-            onConfirmClear={() => {
-              pushHistorySnapshot();
-              setItems([]);
-              setStrokes([]);
-              setConnectors([]);
-              setSelectedItemIds([]);
-              setSelectedStrokeIds([]);
-              showToast('Canvas cleared');
-            }}
-          />
+          <AnimatePresence>
+            {isClearModalOpen && (
+              <ClearCanvasModal
+                key="clear-canvas-modal"
+                isOpen={isClearModalOpen}
+                onClose={() => setIsClearModalOpen(false)}
+                theme={theme}
+                onConfirmClear={() => {
+                  pushHistorySnapshot();
+                  setItems([]);
+                  setStrokes([]);
+                  setConnectors([]);
+                  setSelectedItemIds([]);
+                  setSelectedStrokeIds([]);
+                  showToast('Canvas cleared');
+                }}
+              />
+            )}
+          </AnimatePresence>
 
           {/* Toast Notification */}
           {toastMessage && (
