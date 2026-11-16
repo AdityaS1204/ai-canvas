@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { CloudinaryConfig } from '@/types/canvas';
 import { getStoredCloudinaryConfig, saveStoredCloudinaryConfig } from '@/lib/cloudinary';
 import { Close } from '@honeyicons/react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface CloudinaryConfigModalProps {
   isOpen: boolean;
@@ -21,6 +21,7 @@ export default function CloudinaryConfigModal({
   const [uploadPreset, setUploadPreset] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [showInstructions, setShowInstructions] = useState(false);
 
   useEffect(() => {
     const cfg = getStoredCloudinaryConfig();
@@ -120,20 +121,89 @@ export default function CloudinaryConfigModal({
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Guide Card matching 3D modal card styling */}
-            <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08),inset_0_0_16px_rgba(255,255,255,0.02)] space-y-1.5">
-              <span className="text-xs font-semibold text-blue-400">💡 Setup Instructions</span>
-              <ul className="list-disc list-inside space-y-1 text-white/70 text-[11px] leading-relaxed">
-                <li>
-                  <strong className="text-white">Cloud Name:</strong> Your Cloudinary account name.
-                </li>
-                <li>
-                  <strong className="text-white">Unsigned Preset:</strong> Set Signing Mode to <strong className="text-blue-300">Unsigned</strong> in Cloudinary Console &rarr; Settings &rarr; Upload Presets.
-                </li>
-                <li>
-                  <strong className="text-white">Leave blank for Local:</strong> Without a preset, files load locally without Cloudinary.
-                </li>
-              </ul>
+            {/* Progressive Disclosure: Setup Instructions */}
+            <div className="rounded-2xl bg-white/[0.03] border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08),inset_0_0_16px_rgba(255,255,255,0.02)] overflow-hidden transition-colors">
+              <button
+                type="button"
+                onClick={() => setShowInstructions((prev) => !prev)}
+                className="w-full px-4 py-3 flex items-center justify-between text-left text-xs font-medium text-white/90 hover:text-white transition-colors cursor-pointer select-none"
+              >
+                <span>Setup instructions</span>
+                <span
+                  className={`text-[10px] text-white/40 transition-transform duration-300 ${
+                    showInstructions ? 'rotate-180 text-white' : ''
+                  }`}
+                >
+                  ▼
+                </span>
+              </button>
+
+              <AnimatePresence initial={false}>
+                {showInstructions && (
+                  <motion.div
+                    key="cloudinary-instructions-content"
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{
+                      height: 'auto',
+                      opacity: 1,
+                      transition: {
+                        height: { type: 'spring', damping: 24, stiffness: 280, mass: 0.8 },
+                        opacity: { duration: 0.22, delay: 0.05 },
+                      },
+                    }}
+                    exit={{
+                      height: 0,
+                      opacity: 0,
+                      transition: {
+                        height: { duration: 0.25, ease: [0.32, 0.72, 0, 1] },
+                        opacity: { duration: 0.15 },
+                      },
+                    }}
+                    className="overflow-hidden"
+                  >
+                    <div className="px-4 pb-4 pt-1 space-y-3 border-t border-white/5 text-[11px] text-white/70 leading-relaxed">
+                      {/* Step 1 */}
+                      <div className="flex items-start gap-2.5">
+                        <span className="flex-shrink-0 w-5 h-5 rounded-full bg-white/10 text-white font-mono text-[10px] flex items-center justify-center font-semibold mt-0.5 shadow-sm">
+                          1
+                        </span>
+                        <div>
+                          <strong className="text-white">Cloud Name</strong>
+                          <p className="text-white/60 mt-0.5">
+                            Find your Cloud Name on your main Cloudinary Dashboard.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Step 2 */}
+                      <div className="flex items-start gap-2.5">
+                        <span className="flex-shrink-0 w-5 h-5 rounded-full bg-white/10 text-white font-mono text-[10px] flex items-center justify-center font-semibold mt-0.5 shadow-sm">
+                          2
+                        </span>
+                        <div>
+                          <strong className="text-white">Unsigned Upload Preset</strong>
+                          <p className="text-white/60 mt-0.5">
+                            Go to <strong className="text-white/90">Settings &rarr; Upload &rarr; Upload Presets</strong>, add or edit a preset, and set Signing Mode to <strong className="text-white/95">Unsigned</strong>.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Step 3 */}
+                      <div className="flex items-start gap-2.5">
+                        <span className="flex-shrink-0 w-5 h-5 rounded-full bg-white/10 text-white font-mono text-[10px] flex items-center justify-center font-semibold mt-0.5 shadow-sm">
+                          3
+                        </span>
+                        <div>
+                          <strong className="text-white">Optional Local Mode</strong>
+                          <p className="text-white/60 mt-0.5">
+                            Leave the preset empty to upload and play files locally without Cloudinary.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             <div>
