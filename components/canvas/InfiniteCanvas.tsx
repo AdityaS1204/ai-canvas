@@ -37,6 +37,7 @@ import MediaUploadModal from '../modals/MediaUploadModal';
 import CloudinaryConfigModal from '../modals/CloudinaryConfigModal';
 import JsonViewerModal from '../modals/JsonViewerModal';
 import ClearCanvasModal from '../modals/ClearCanvasModal';
+import { AnimatePresence } from 'motion/react';
 
 
 interface HistorySnapshot {
@@ -1266,15 +1267,18 @@ export default function InfiniteCanvas() {
           />
 
           {/* Media Upload Modal */}
-          {uploadModalType && (
-            <MediaUploadModal
-              isOpen={Boolean(uploadModalType)}
-              mediaType={uploadModalType}
-              onClose={() => setUploadModalType(null)}
-              onAddMedia={handleAddMedia}
-              onOpenCloudinaryConfig={() => setIsCloudinaryModalOpen(true)}
-            />
-          )}
+          <AnimatePresence>
+            {uploadModalType && (
+              <MediaUploadModal
+                key="media-upload-modal"
+                isOpen={Boolean(uploadModalType)}
+                mediaType={uploadModalType}
+                onClose={() => setUploadModalType(null)}
+                onAddMedia={handleAddMedia}
+                onOpenCloudinaryConfig={() => setIsCloudinaryModalOpen(true)}
+              />
+            )}
+          </AnimatePresence>
 
           {/* Cloudinary Storage Settings Modal */}
           <CloudinaryConfigModal

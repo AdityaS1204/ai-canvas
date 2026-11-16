@@ -58,7 +58,7 @@ export default function ClearCanvasModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`relative w-full max-w-sm rounded-2xl border shadow-2xl p-5 flex flex-col gap-4 animate-in zoom-in-95 duration-200 transition-colors ${
+        className={`relative w-full max-w-sm rounded-2xl border shadow-[inset_0_1px_1px_rgba(255,255,255,0.18),0_20px_50px_rgba(0,0,0,0.85)] p-5 flex flex-col gap-4 animate-in zoom-in-95 duration-200 transition-colors ${
           isLight
             ? 'bg-[#ffffff] border-[#ded6d6] text-[#2d2424]'
             : 'bg-[#241c1c] border-[#524141] text-white'
