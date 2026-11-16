@@ -150,34 +150,26 @@ export default function JsonViewerModal({
         }}
         className="relative w-full max-w-2xl bg-[#161519] border border-white/10 rounded-[28px] shadow-[inset_0_1px_1px_rgba(255,255,255,0.18),inset_0_0_24px_rgba(255,255,255,0.02),0_24px_65px_rgba(0,0,0,0.85)] overflow-hidden flex flex-col max-h-[88vh]"
       >
-        {/* Top Banner: Matching Modal Header Design */}
-        <div className="relative w-full h-28 overflow-hidden rounded-t-[28px] bg-gradient-to-b from-[#1c1a24] to-[#121115] flex items-center justify-center shadow-[inset_0_-1px_1px_rgba(255,255,255,0.06)]">
-          <div className="w-11 h-11 rounded-2xl bg-white/[0.08] border border-white/15 text-white/90 flex items-center justify-center shadow-[inset_0_1px_1px_rgba(255,255,255,0.2),0_8px_20px_rgba(0,0,0,0.4)]">
-            <Download size={22} />
-          </div>
-          {/* Subtle gradient vignette */}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#161519] via-transparent to-black/20 pointer-events-none" />
-
-          {/* Floating subtle circular close button */}
-          <button
-            type="button"
-            onClick={onClose}
-            title="Close"
-            className="absolute top-3.5 right-4 w-8 h-8 rounded-full bg-black/60 hover:bg-black/90 backdrop-blur-md text-white/80 hover:text-white border border-white/15 flex items-center justify-center transition-all cursor-pointer shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)] z-10"
-          >
-            <Close size={14} />
-          </button>
-        </div>
-
         {/* Modal Body */}
-        <div className="px-6 pt-3 pb-6 flex flex-col flex-1 overflow-hidden">
-          <div className="mb-4">
-            <h2 className="text-xl font-semibold text-white tracking-tight">
-              Canvas State & JSON
-            </h2>
-            <p className="text-xs text-white/50 mt-1">
-              Inspect, copy, export, or import project state.
-            </p>
+        <div className="p-6 flex flex-col flex-1 overflow-hidden">
+          {/* Header with Title and Close button */}
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <h2 className="text-xl font-semibold text-white tracking-tight">
+                Canvas State & JSON
+              </h2>
+              <p className="text-xs text-white/50 mt-1">
+                Inspect, copy, export, or import project state.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              title="Close"
+              className="w-8 h-8 rounded-full bg-white/[0.06] hover:bg-white/[0.14] text-white/80 hover:text-white border border-white/10 flex items-center justify-center transition-all cursor-pointer shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)] shrink-0"
+            >
+              <Close size={14} />
+            </button>
           </div>
 
           {/* Tab Selector Pills */}
