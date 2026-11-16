@@ -13,8 +13,7 @@ import {
   Hand,
   ZoomIn,
   ZoomOut,
-  Download,
-  CloudUpload,
+  MoreHorizontal,
 } from '@honeyicons/react';
 
 interface FloatingToolbarProps {
@@ -33,8 +32,8 @@ interface FloatingToolbarProps {
   onResetZoom: () => void;
   onAddTextBox: () => void;
   onOpenUploadModal: (type: 'image' | 'video' | 'audio') => void;
-  onOpenJsonModal: () => void;
-  onOpenCloudinaryModal: () => void;
+  onOpenJsonModal?: () => void;
+  onOpenCloudinaryModal?: () => void;
   onClearCanvas: () => void;
   onAddShape: (kind: ShapeKind) => void;
   onDimensionsChange?: (dims: { width: number; height: number }) => void;
@@ -42,6 +41,7 @@ interface FloatingToolbarProps {
   onRedo?: () => void;
   canUndo?: boolean;
   canRedo?: boolean;
+  onOpenAiAgent?: () => void;
 }
 
 // Preset color palette for pen and shapes
@@ -183,10 +183,13 @@ export default function FloatingToolbar({
   onRedo,
   canUndo = false,
   canRedo = false,
+  onOpenAiAgent,
 }: FloatingToolbarProps) {
   const [showPenOptions, setShowPenOptions] = useState(false);
   const [showShapesMenu, setShowShapesMenu] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
   const shapesRef = useRef<HTMLDivElement>(null);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
   const toolbarContainerRef = useRef<HTMLDivElement>(null);
   const isLight = theme === 'light';
 
@@ -202,6 +205,19 @@ export default function FloatingToolbar({
     }
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, [showShapesMenu]);
+
+  // Close more menu on outside click
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node)) {
+        setShowMoreMenu(false);
+      }
+    };
+    if (showMoreMenu) {
+      document.addEventListener('mousedown', handleOutsideClick);
+    }
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [showMoreMenu]);
 
   // Report measured toolbar dimensions to align the SVG notch shelf pixel-perfectly
   useEffect(() => {
@@ -238,7 +254,7 @@ export default function FloatingToolbar({
     : 'text-white/60 hover:text-white hover:bg-white/10';
 
   return (
-    <div className="fixed bottom-1.5 left-1/2 -translate-x-1/2 z-40 flex flex-col items-center gap-2 select-none pointer-events-auto">
+    <div className="fixed bottom-3 md:bottom-1.5 left-1/2 -translate-x-1/2 z-40 flex flex-col items-center gap-2 select-none pointer-events-auto max-w-[calc(100vw-16px)]">
       {/* Pen Options Popup */}
       {showPenOptions && activeTool === 'pen' && (
         <div
@@ -328,6 +344,7 @@ export default function FloatingToolbar({
             onClick={() => {
               setActiveTool('select');
               setShowPenOptions(false);
+              setShowMoreMenu(false);
             }}
             className={`flex items-center justify-center w-9 h-9 rounded-md transition-all cursor-pointer ${
               activeTool === 'select'
@@ -347,6 +364,7 @@ export default function FloatingToolbar({
             onClick={() => {
               setActiveTool('hand');
               setShowPenOptions(false);
+              setShowMoreMenu(false);
             }}
             className={`flex items-center justify-center w-9 h-9 rounded-md transition-all cursor-pointer ${
               activeTool === 'hand'
@@ -370,6 +388,7 @@ export default function FloatingToolbar({
             aria-label="Pen tool"
             onClick={() => {
               setActiveTool('pen');
+              setShowMoreMenu(false);
               setShowPenOptions(!showPenOptions || activeTool !== 'pen');
             }}
             className={`relative flex items-center justify-center w-9 h-9 rounded-md transition-all cursor-pointer ${
@@ -394,6 +413,7 @@ export default function FloatingToolbar({
             onClick={() => {
               setActiveTool('eraser');
               setShowPenOptions(false);
+              setShowMoreMenu(false);
             }}
             className={`flex items-center justify-center w-9 h-9 rounded-md transition-all cursor-pointer ${
               activeTool === 'eraser'
@@ -414,6 +434,7 @@ export default function FloatingToolbar({
               onClick={() => {
                 setShowShapesMenu((prev) => !prev);
                 setShowPenOptions(false);
+                setShowMoreMenu(false);
               }}
               className={`relative flex items-center justify-center w-9 h-9 rounded-md transition-all cursor-pointer ${
                 showShapesMenu || activeTool === 'shape'
@@ -510,6 +531,8 @@ export default function FloatingToolbar({
             aria-label="Add Text Box"
             onClick={() => {
               setShowPenOptions(false);
+              setShowShapesMenu(false);
+              setShowMoreMenu(false);
               onAddTextBox();
             }}
             className={`flex items-center justify-center w-9 h-9 rounded-md transition-all cursor-pointer ${inactiveBtnClass}`}
@@ -518,84 +541,157 @@ export default function FloatingToolbar({
           </button>
         </ToolbarTooltip>
 
-        {/* Image tool */}
-        <ToolbarTooltip label="Image" isLight={isLight}>
-          <button
-            type="button"
-            aria-label="Add Image"
-            onClick={() => {
-              setShowPenOptions(false);
-              onOpenUploadModal('image');
-            }}
-            className={`flex items-center justify-center w-9 h-9 rounded-md transition-all cursor-pointer ${inactiveBtnClass}`}
-          >
-            <ImageIcon size={17} />
-          </button>
-        </ToolbarTooltip>
+        {/* Desktop Direct Media Tools */}
+        <div className="hidden md:flex items-center gap-1">
+          {/* Image tool */}
+          <ToolbarTooltip label="Image" isLight={isLight}>
+            <button
+              type="button"
+              aria-label="Add Image"
+              onClick={() => {
+                setShowPenOptions(false);
+                setShowShapesMenu(false);
+                setShowMoreMenu(false);
+                onOpenUploadModal('image');
+              }}
+              className={`flex items-center justify-center w-9 h-9 rounded-md transition-all cursor-pointer ${inactiveBtnClass}`}
+            >
+              <ImageIcon size={17} />
+            </button>
+          </ToolbarTooltip>
 
-        {/* Video tool */}
-        <ToolbarTooltip label="Video" isLight={isLight}>
-          <button
-            type="button"
-            aria-label="Add Video"
-            onClick={() => {
-              setShowPenOptions(false);
-              onOpenUploadModal('video');
-            }}
-            className={`flex items-center justify-center w-9 h-9 rounded-md transition-all cursor-pointer ${inactiveBtnClass}`}
-          >
-            <FileVideo size={17} />
-          </button>
-        </ToolbarTooltip>
+          {/* Video tool */}
+          <ToolbarTooltip label="Video" isLight={isLight}>
+            <button
+              type="button"
+              aria-label="Add Video"
+              onClick={() => {
+                setShowPenOptions(false);
+                setShowShapesMenu(false);
+                setShowMoreMenu(false);
+                onOpenUploadModal('video');
+              }}
+              className={`flex items-center justify-center w-9 h-9 rounded-md transition-all cursor-pointer ${inactiveBtnClass}`}
+            >
+              <FileVideo size={17} />
+            </button>
+          </ToolbarTooltip>
 
-        {/* Audio tool */}
-        <ToolbarTooltip label="Audio" isLight={isLight}>
-          <button
-            type="button"
-            aria-label="Add Audio Track"
-            onClick={() => {
-              setShowPenOptions(false);
-              onOpenUploadModal('audio');
-            }}
-            className={`flex items-center justify-center w-9 h-9 rounded-md transition-all cursor-pointer ${inactiveBtnClass}`}
-          >
-            <MusicNote size={17} />
-          </button>
-        </ToolbarTooltip>
+          {/* Audio tool */}
+          <ToolbarTooltip label="Audio" isLight={isLight}>
+            <button
+              type="button"
+              aria-label="Add Audio Track"
+              onClick={() => {
+                setShowPenOptions(false);
+                setShowShapesMenu(false);
+                setShowMoreMenu(false);
+                onOpenUploadModal('audio');
+              }}
+              className={`flex items-center justify-center w-9 h-9 rounded-md transition-all cursor-pointer ${inactiveBtnClass}`}
+            >
+              <MusicNote size={17} />
+            </button>
+          </ToolbarTooltip>
+        </div>
 
-        <div className={`h-5 w-[1px] mx-1 ${isLight ? 'bg-black/15' : 'bg-white/15'}`} />
+        {/* Mobile Three-Dots (...) Menu for Secondary Media Tools */}
+        <div ref={moreMenuRef} className="relative flex md:hidden items-center">
+          <ToolbarTooltip label="More Tools" isLight={isLight} hidden={showMoreMenu}>
+            <button
+              type="button"
+              aria-label="More media tools"
+              onClick={() => {
+                setShowPenOptions(false);
+                setShowShapesMenu(false);
+                setShowMoreMenu(!showMoreMenu);
+              }}
+              className={`flex items-center justify-center w-9 h-9 rounded-md transition-all cursor-pointer ${
+                showMoreMenu
+                  ? 'bg-blue-600 text-white shadow-md'
+                  : inactiveBtnClass
+              }`}
+            >
+              <MoreHorizontal size={18} />
+            </button>
+          </ToolbarTooltip>
 
-        {/* Cloudinary Storage Config */}
-        <ToolbarTooltip label="Cloudinary" isLight={isLight}>
-          <button
-            type="button"
-            aria-label="Cloudinary Storage Settings"
-            onClick={onOpenCloudinaryModal}
-            className={`flex items-center justify-center w-9 h-9 rounded-md transition-all cursor-pointer ${
-              isLight
-                ? 'text-blue-600 hover:text-blue-700 hover:bg-blue-50'
-                : 'text-blue-400 hover:text-white hover:bg-blue-600/20'
-            }`}
-          >
-            <CloudUpload size={17} />
-          </button>
-        </ToolbarTooltip>
+          {/* Upward Dropdown Menu */}
+          {showMoreMenu && (
+            <div
+              className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-44 p-1.5 rounded-lg border shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-bottom-2 duration-150 z-50 flex flex-col gap-0.5 ${
+                isLight
+                  ? 'bg-white/95 border-[#d8cfcf] text-[#2d2424] shadow-black/15'
+                  : 'bg-[#231b1b]/95 border-[#524141] text-white shadow-black/90'
+              }`}
+            >
+              <div className="px-2 py-1 text-[10px] font-semibold tracking-wider uppercase opacity-50 select-none">
+                Insert Media
+              </div>
 
-        {/* JSON Inspector & Export */}
-        <ToolbarTooltip label="Inspect JSON" isLight={isLight}>
-          <button
-            type="button"
-            aria-label="View & Export Canvas JSON"
-            onClick={onOpenJsonModal}
-            className={`flex items-center justify-center w-9 h-9 rounded-md transition-all cursor-pointer ${
-              isLight
-                ? 'text-[#5a4848] hover:text-[#18181b] hover:bg-black/5'
-                : 'text-white/70 hover:text-white hover:bg-white/10'
-            }`}
-          >
-            <Download size={17} />
-          </button>
-        </ToolbarTooltip>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowMoreMenu(false);
+                  onOpenUploadModal('image');
+                }}
+                className={`w-full h-8 px-2.5 rounded-md flex items-center gap-2.5 text-xs font-medium transition-colors cursor-pointer ${
+                  isLight ? 'hover:bg-black/5 active:bg-black/10' : 'hover:bg-white/10 active:bg-white/15'
+                }`}
+              >
+                <ImageIcon size={15} className="text-blue-500" />
+                <span>Image</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowMoreMenu(false);
+                  onOpenUploadModal('video');
+                }}
+                className={`w-full h-8 px-2.5 rounded-md flex items-center gap-2.5 text-xs font-medium transition-colors cursor-pointer ${
+                  isLight ? 'hover:bg-black/5 active:bg-black/10' : 'hover:bg-white/10 active:bg-white/15'
+                }`}
+              >
+                <FileVideo size={15} className="text-purple-500" />
+                <span>Video</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowMoreMenu(false);
+                  onOpenUploadModal('audio');
+                }}
+                className={`w-full h-8 px-2.5 rounded-md flex items-center gap-2.5 text-xs font-medium transition-colors cursor-pointer ${
+                  isLight ? 'hover:bg-black/5 active:bg-black/10' : 'hover:bg-white/10 active:bg-white/15'
+                }`}
+              >
+                <MusicNote size={15} className="text-emerald-500" />
+                <span>Audio</span>
+              </button>
+
+              <div className={`h-[1px] my-1 ${isLight ? 'bg-black/10' : 'bg-white/10'}`} />
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowMoreMenu(false);
+                  onResetZoom();
+                }}
+                className={`w-full h-8 px-2.5 rounded-md flex items-center justify-between text-xs font-medium transition-colors cursor-pointer ${
+                  isLight ? 'hover:bg-black/5 active:bg-black/10' : 'hover:bg-white/10 active:bg-white/15'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <ZoomIn size={15} className="opacity-70" />
+                  <span>Reset Zoom</span>
+                </div>
+                <span className="text-[10px] font-mono opacity-60">{Math.round(zoom * 100)}%</span>
+              </button>
+            </div>
+          )}
+        </div>
 
         <div className={`h-5 w-[1px] mx-1 ${isLight ? 'bg-black/15' : 'bg-white/15'}`} />
 
@@ -643,49 +739,69 @@ export default function FloatingToolbar({
           </ToolbarTooltip>
         )}
 
-        <div className={`h-5 w-[1px] mx-1 ${isLight ? 'bg-black/15' : 'bg-white/15'}`} />
+        {/* Gemini AI Canvas Agent */}
+        {onOpenAiAgent && (
+          <ToolbarTooltip label="Gemini AI Agent" shortcut="Ctrl+K" isLight={isLight}>
+            <button
+              type="button"
+              aria-label="Gemini AI Agent"
+              onClick={onOpenAiAgent}
+              className={`flex items-center justify-center w-8 h-8 rounded-md transition-all cursor-pointer ${
+                isLight
+                  ? 'text-blue-600 hover:bg-blue-50 font-bold'
+                  : 'text-blue-400 hover:text-white hover:bg-blue-600/20 font-bold'
+              }`}
+            >
+              <span className="text-sm">✦</span>
+            </button>
+          </ToolbarTooltip>
+        )}
+
+        <div className={`hidden sm:block h-5 w-[1px] mx-1 ${isLight ? 'bg-black/15' : 'bg-white/15'}`} />
 
         {/* Zoom Controls */}
-        <button
-          type="button"
-          aria-label="Zoom Out"
-          onClick={onZoomOut}
-          className={`flex items-center justify-center w-8 h-8 rounded-md transition-all cursor-pointer ${
-            isLight
-              ? 'text-[#5a4848] hover:text-[#18181b] hover:bg-black/5'
-              : 'text-white/60 hover:text-white hover:bg-white/10'
-          }`}
-        >
-          <ZoomOut size={15} />
-        </button>
-
-        <ToolbarTooltip label="Reset View (100%)" isLight={isLight}>
+        <div className="hidden sm:flex items-center gap-0.5">
           <button
             type="button"
-            aria-label="Reset Zoom (100%)"
-            onClick={onResetZoom}
-            className={`px-2 py-1 text-[11px] font-mono rounded-md transition-all cursor-pointer min-w-[38px] text-center ${
+            aria-label="Zoom Out"
+            onClick={onZoomOut}
+            className={`flex items-center justify-center w-8 h-8 rounded-md transition-all cursor-pointer ${
               isLight
-                ? 'text-[#382d2d] hover:text-[#18181b] hover:bg-black/5'
-                : 'text-white/80 hover:text-white hover:bg-white/10'
+                ? 'text-[#5a4848] hover:text-[#18181b] hover:bg-black/5'
+                : 'text-white/60 hover:text-white hover:bg-white/10'
             }`}
           >
-            {Math.round(zoom * 100)}%
+            <ZoomOut size={15} />
           </button>
-        </ToolbarTooltip>
 
-        <button
-          type="button"
-          aria-label="Zoom In"
-          onClick={onZoomIn}
-          className={`flex items-center justify-center w-8 h-8 rounded-md transition-all cursor-pointer ${
-            isLight
-              ? 'text-[#5a4848] hover:text-[#18181b] hover:bg-black/5'
-              : 'text-white/60 hover:text-white hover:bg-white/10'
-          }`}
-        >
-          <ZoomIn size={15} />
-        </button>
+          <ToolbarTooltip label="Reset View (100%)" isLight={isLight}>
+            <button
+              type="button"
+              aria-label="Reset Zoom (100%)"
+              onClick={onResetZoom}
+              className={`px-2 py-1 text-[11px] font-mono rounded-md transition-all cursor-pointer min-w-[38px] text-center ${
+                isLight
+                  ? 'text-[#382d2d] hover:text-[#18181b] hover:bg-black/5'
+                  : 'text-white/80 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              {Math.round(zoom * 100)}%
+            </button>
+          </ToolbarTooltip>
+
+          <button
+            type="button"
+            aria-label="Zoom In"
+            onClick={onZoomIn}
+            className={`flex items-center justify-center w-8 h-8 rounded-md transition-all cursor-pointer ${
+              isLight
+                ? 'text-[#5a4848] hover:text-[#18181b] hover:bg-black/5'
+                : 'text-white/60 hover:text-white hover:bg-white/10'
+            }`}
+          >
+            <ZoomIn size={15} />
+          </button>
+        </div>
       </div>
     </div>
   );

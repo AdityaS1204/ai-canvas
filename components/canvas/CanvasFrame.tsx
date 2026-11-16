@@ -84,6 +84,7 @@ export default function CanvasFrame({
 
   // Compute responsive frame path using exact Figma cubic bezier formulas
   const { w: W, h: H } = dims;
+  const isMobile = W > 0 && W < 768;
   const T = 20; // Top border thickness
   const L = 20; // Left border thickness
   const R = 20; // Right border thickness
@@ -170,22 +171,22 @@ export default function CanvasFrame({
         </defs>
       </svg>
 
-      {/* 2. Inner Canvas Container: clipped smoothly by the dynamic frame */}
+      {/* 2. Inner Canvas Container: clipped smoothly by the dynamic frame on desktop, edge-to-edge on mobile */}
       <div
         className={`absolute inset-0 overflow-hidden transition-colors duration-300 ${
           isLight ? 'bg-[#f7f4f4]' : 'bg-[#221b1b]'
         }`}
         style={{
-          clipPath: 'url(#canvas-inner-cutout)',
-          WebkitClipPath: 'url(#canvas-inner-cutout)',
+          clipPath: isMobile ? undefined : 'url(#canvas-inner-cutout)',
+          WebkitClipPath: isMobile ? undefined : 'url(#canvas-inner-cutout)',
         }}
       >
         {children}
       </div>
 
-      {/* 3. Outer Frame Overlay SVG (Hardware-accelerated Motion path morphing with 3D depth filter) */}
+      {/* 3. Outer Frame Overlay SVG (Hardware-accelerated Motion path morphing with 3D depth filter) - Hidden on mobile */}
       <svg
-        className="fixed inset-0 w-full h-full pointer-events-none z-30"
+        className="hidden md:block fixed inset-0 w-full h-full pointer-events-none z-30"
         viewBox={`0 0 ${W} ${H}`}
         preserveAspectRatio="none"
       >
@@ -229,7 +230,7 @@ export default function CanvasFrame({
           borderRadius: 6,
         }}
         transition={SMOOTH_TRANSITION}
-        className={`fixed top-[23px] left-[23px] z-40 border rounded-md shadow-2xl overflow-hidden select-none pointer-events-auto transition-colors duration-200 ${
+        className={`fixed top-3 left-3 md:top-[23px] md:left-[23px] z-40 border rounded-md shadow-2xl overflow-hidden select-none pointer-events-auto transition-colors duration-200 ${
           isLight
             ? 'bg-[#ffffff] border-[#d8cfcf] text-[#2d2424] shadow-black/10'
             : 'bg-[#231b1b] border-[#524141] text-white shadow-black/90'
